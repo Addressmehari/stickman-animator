@@ -199,7 +199,7 @@ function setupEventListeners() {
         if (!State.isPlaying) draw();
     });
 
-    // Export
+    // Video/GIF Export (Placeholder for future)
     btnExport.addEventListener('click', showExportModal);
     closeModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
     btnCopy.addEventListener('click', () => {
@@ -207,6 +207,38 @@ function setupEventListeners() {
         document.execCommand('copy');
         btnCopy.textContent = "Copied!";
         setTimeout(() => btnCopy.textContent = "Copy to Clipboard", 2000);
+    });
+
+    // --- Keyboard Shortcuts ---
+    window.addEventListener('keydown', (e) => {
+        // Ignore if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        switch(e.key) {
+            case ' ':
+                e.preventDefault();
+                if (State.isPlaying) stopPlayback();
+                else startPlayback();
+                break;
+            case 'ArrowLeft':
+                if (!State.isPlaying && State.currentFrameIndex > 0) {
+                    selectFrame(State.currentFrameIndex - 1);
+                }
+                break;
+            case 'ArrowRight':
+                if (!State.isPlaying && State.currentFrameIndex < State.frames.length - 1) {
+                    selectFrame(State.currentFrameIndex + 1);
+                }
+                break;
+            case 'n':
+            case 'N':
+                addNewFrame();
+                break;
+            case 'Delete':
+            case 'Backspace':
+                deleteFrame(State.currentFrameIndex);
+                break;
+        }
     });
 }
 
