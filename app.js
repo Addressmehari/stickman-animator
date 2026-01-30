@@ -582,18 +582,18 @@ function playbackLoop(timestamp) {
     requestAnimationFrame(playbackLoop);
 }
 
-function getCurrentInterpolatedPose() {
+// Refactored to allow sampling at any time (needed for Export)
+function getPoseAtTime(globalTime) {
     let timeAccumulator = 0;
     
     for (let i = 0; i < State.frames.length - 1; i++) {
         const frameDuration = State.frames[i].duration;
         
-        if (State.playCurrentGlobalTime >= timeAccumulator && State.playCurrentGlobalTime < timeAccumulator + frameDuration) {
-            const timeInFrame = State.playCurrentGlobalTime - timeAccumulator;
+        if (globalTime >= timeAccumulator && globalTime < timeAccumulator + frameDuration) {
+            const timeInFrame = globalTime - timeAccumulator;
             const t = timeInFrame / frameDuration; 
             
-            // Apply Easing (Smooth Physics-like feel)
-            // Using EaseInOutCubic for natural acceleration/deceleration
+            // Apply Easing
             const easedT = EasingFunctions.easeInOutCubic(t);
             
             return interpolatePoints(State.frames[i].points, State.frames[i+1].points, easedT);
@@ -603,11 +603,14 @@ function getCurrentInterpolatedPose() {
     return State.frames[State.frames.length - 1].points;
 }
 
+function getCurrentInterpolatedPose() {
+    return getPoseAtTime(State.playCurrentGlobalTime);
+}
+
 const EasingFunctions = {
     linear: t => t,
-    // Smooth start and end (Natural)
+    // Smooth start and end
     easeInOutCubic: t => t < .5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
-    // Spring-like overshoot (Optional, using cubic for now as it's cleaner)
     easeOutBack: t => {
         const c1 = 1.70158;
         const c3 = c1 + 1;
@@ -615,27 +618,115 @@ const EasingFunctions = {
     }
 };
 
+// Hardcoded topological sort order (Parent -> Children) for FK Calculation
+const FK_TRAVERSAL_ORDER = [7, 2, 8, 10, 1, 9, 11, 0, 3, 5, 4, 6];
+
 function interpolatePoints(pointsA, pointsB, t) {
-    return pointsA.map((pA, index) => {
-        const pB = pointsB[index];
-        return {
-            id: pA.id,
-            x: pA.x + (pB.x - pA.x) * t,
-            y: pA.y + (pB.y - pA.y) * t
+    // ... (Existing FK Logic remains unchanged) ...
+    // Note: Re-stating just for context, but in replace_file tool we just need to ensure the surrounding code matches.
+    // The user's content already has this FK logic from previous step. 
+    // We are replacing everything from getCurrentInterpolatedPose down to interpolatePoints.
+    
+    const resultPoints = new Array(pointsA.length);
+
+    // 1. Root (Pelvis id:7) moves Linearly
+    const rootA = pointsA[7];
+    const rootB = pointsB[7];
+    
+    if (!rootA || !rootB) return pointsA; 
+
+    resultPoints[7] = {
+        id: 7,
+        x: rootA.x + (rootB.x - rootA.x) * t,
+        y: rootA.y + (rootB.y - rootA.y) * t
+    };
+
+    // 2. Children rotate around parents
+    for (let i = 0; i < FK_TRAVERSAL_ORDER.length; i++) {
+        const idx = FK_TRAVERSAL_ORDER[i];
+        if (idx === 7) continue; 
+
+        const parentIdx = PARENT_MAP[idx];
+        const parentNew = resultPoints[parentIdx]; 
+
+        const selfA = pointsA[idx];
+        const parentA = pointsA[parentIdx];
+        
+        const selfB = pointsB[idx];
+        const parentB = pointsB[parentIdx];
+
+        const dxA = selfA.x - parentA.x;
+        const dyA = selfA.y - parentA.y;
+        const angleA = Math.atan2(dyA, dxA);
+        const lenA = Math.sqrt(dxA*dxA + dyA*dyA);
+
+        const dxB = selfB.x - parentB.x;
+        const dyB = selfB.y - parentB.y;
+        const angleB = Math.atan2(dyB, dxB);
+        const lenB = Math.sqrt(dxB*dxB + dyB*dyB);
+
+        let diff = angleB - angleA;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        
+        const angleT = angleA + diff * t;
+        const lenT = lenA + (lenB - lenA) * t;
+
+        resultPoints[idx] = {
+            id: idx,
+            x: parentNew.x + Math.cos(angleT) * lenT,
+            y: parentNew.y + Math.sin(angleT) * lenT
         };
-    });
+    }
+
+    return resultPoints;
 }
 
 // --- Export ---
 function showExportModal() {
+    const FPS = 30; // Baking Frame Rate
+    const bakedFrames = [];
+    
+    // Calculate total duration based on keyframes
+    let totalDuration = 0;
+    for (let i = 0; i < State.frames.length - 1; i++) {
+        totalDuration += State.frames[i].duration;
+    }
+    
+    // Generate In-Between Frames
+    // Step through time at 1/FPS increments
+    let t = 0;
+    // We add a tiny epsilon to ensure we catch the exact end point if float math aligns
+    while (t <= totalDuration + 0.001) {
+        const pose = getPoseAtTime(t);
+        bakedFrames.push({
+            time: parseFloat(t.toFixed(3)),
+            points: pose.map(p => ({
+                id: p.id,
+                x: Math.round(p.x * 10) / 10,
+                y: Math.round(p.y * 10) / 10
+            }))
+        });
+        t += 1 / FPS;
+    }
+
     const exportData = {
-        animationName: "my_stickman_anim",
-        frames: State.frames.map((f, i) => ({
-            frameId: i + 1,
-            durationToNext: (i < State.frames.length - 1) ? f.duration : 0,
-            points: f.points
-        }))
+        meta: {
+            name: "stickman_project",
+            fps: FPS,
+            totalDuration: parseFloat(totalDuration.toFixed(2)),
+            totalFrames: bakedFrames.length
+        },
+        // Original Keyframes (for editing)
+        keyframes: State.frames.map((f, i) => ({
+            id: i + 1,
+            duration: f.duration,
+            points: f.points.map(p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y) }))
+        })),
+        // Baked Animation (Result with in-betweens)
+        bakedAnimation: bakedFrames
     };
+    
     exportOutput.value = JSON.stringify(exportData, null, 2);
     exportModal.classList.remove('hidden');
 }
