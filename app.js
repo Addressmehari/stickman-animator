@@ -74,6 +74,60 @@ function getInitialPose() {
     ];
 }
 
+// --- Audio Engine (Procedural Sound) ---
+const AudioEngine = {
+    ctx: null,
+    
+    init: function() {
+        // User interaction required to start AudioContext
+        try {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        } catch(e) {
+            console.warn('Web Audio API not supported');
+        }
+    },
+
+    playPaperScuff: function(intensity = 1.0) {
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const t = this.ctx.currentTime;
+        
+        // Brown/Pink Noise for "Paper" texture
+        const bufferSize = this.ctx.sampleRate * 0.15; // 150ms
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        let lastOut = 0;
+        
+        for (let i = 0; i < bufferSize; i++) {
+            // Simple Brown Noise approximation
+            const white = Math.random() * 2 - 1;
+            data[i] = (lastOut + (0.02 * white)) / 1.02;
+            lastOut = data[i];
+            data[i] *= 3.5; // Gain up
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        // Filter to make it sound like paper
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 400 + Math.random() * 400; // Vary frequency
+        filter.Q.value = 1;
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.1 * intensity, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start();
+    }
+};
+
 // --- Application State ---
 const State = {
     frames: [
@@ -94,7 +148,8 @@ const State = {
     isOnionSkinEnabled: true,
     lastFrameTime: 0,
     playStartTime: 0,
-    playCurrentGlobalTime: 0
+    playCurrentGlobalTime: 0,
+    playLastScuffTime: 0 // Track sound triggers
 };
 
 // --- DOM Elements ---
@@ -235,38 +290,81 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Use clearRect
 
     if (State.isPlaying) {
-        drawStickman(ctx, getCurrentInterpolatedPose(), CONFIG.skeletonColor, 1);
+        // Render Interpolated Frame with Jitter
+        // Pass 'true' for isPlaying to enable Jitter
+        drawStickman(ctx, getCurrentInterpolatedPose(), CONFIG.skeletonColor, 1, 1, 0, 0, true);
+        
+        // Audio Trigger Logic
+        // Trigger a scuff sound every ~150-200ms during movement
+        if (State.playCurrentGlobalTime - State.playLastScuffTime > 0.15) {
+             // Only play if there is significant movement (optional, but keep simple for now)
+             AudioEngine.playPaperScuff(Math.random() * 0.5 + 0.5);
+             State.playLastScuffTime = State.playCurrentGlobalTime;
+        }
+
     } else {
         if (State.isOnionSkinEnabled && State.currentFrameIndex > 0) {
             const prevFrame = State.frames[State.currentFrameIndex - 1];
-            drawStickman(ctx, prevFrame.points, CONFIG.onionSkinColor, 0.4);
+            // Static, no jitter
+            drawStickman(ctx, prevFrame.points, CONFIG.onionSkinColor, 0.4, 1, 0, 0, false);
         }
-        drawStickman(ctx, State.frames[State.currentFrameIndex].points, CONFIG.skeletonColor, 1);
+        // Static Frame
+        drawStickman(ctx, State.frames[State.currentFrameIndex].points, CONFIG.skeletonColor, 1, 1, 0, 0, false);
     }
 }
 
-function drawStickman(context, points, color, opacity, scale = 1, offsetX = 0, offsetY = 0) {
+// Updated drawStickman with Jitter/Hand-Drawn Effect
+function drawStickman(context, points, color, opacity, scale = 1, offsetX = 0, offsetY = 0, useJitter = false) {
     context.globalAlpha = opacity;
     context.lineCap = 'round';
     context.lineJoin = 'round';
 
     context.beginPath();
     context.strokeStyle = color;
-    context.lineWidth = Math.max(1.5, 4 * scale);
+    
+    // Vary line width slightly for hand-drawn feel
+    const baseWidth = Math.max(1.5, 4 * scale);
+    context.lineWidth = useJitter ? baseWidth + (Math.random() - 0.5) : baseWidth;
     
     CONNECTIONS.forEach(([startIndex, endIndex]) => {
-        const start = points[startIndex];
-        const end = points[endIndex];
-        context.moveTo(start.x * scale + offsetX, start.y * scale + offsetY);
-        context.lineTo(end.x * scale + offsetX, end.y * scale + offsetY);
+        let start = points[startIndex];
+        let end = points[endIndex];
+        
+        // Apply Scribble/Jitter
+        // We calculate 'rendered' positions
+        let sx = start.x * scale + offsetX;
+        let sy = start.y * scale + offsetY;
+        let ex = end.x * scale + offsetX;
+        let ey = end.y * scale + offsetY;
+
+        if (useJitter) {
+            sx += (Math.random() - 0.5) * 3;
+            sy += (Math.random() - 0.5) * 3;
+            ex += (Math.random() - 0.5) * 3;
+            ey += (Math.random() - 0.5) * 3;
+        }
+
+        context.moveTo(sx, sy);
+        // Add a slight curve control point for "imperfect" lines? 
+        // For now, straight lines with endpoint jitter is effective enough for "Stickman" style.
+        context.lineTo(ex, ey);
     });
     context.stroke();
 
-    if (scale === 1) { // Only draw joints on main canvas
+    if (scale === 1) { 
         points.forEach(p => {
             context.beginPath();
             context.fillStyle = CONFIG.junctionColor;
-            context.arc(p.x, p.y, CONFIG.pointRadius, 0, Math.PI * 2);
+            
+            let px = p.x;
+            let py = p.y;
+            
+            if (useJitter) {
+                px += (Math.random() - 0.5) * 2;
+                py += (Math.random() - 0.5) * 2;
+            }
+
+            context.arc(px, py, CONFIG.pointRadius, 0, Math.PI * 2);
             context.fill();
         });
     }
@@ -414,9 +512,11 @@ function deleteFrame(index) {
 
 // --- Playback Logic ---
 function startPlayback() {
+    AudioEngine.init(); // Initialize audio on first user gesture
     State.isPlaying = true;
     State.playStartTime = performance.now();
     State.playCurrentGlobalTime = 0;
+    State.playLastScuffTime = 0;
     
     btnPlay.classList.add('hidden');
     btnStop.classList.remove('hidden');
@@ -459,12 +559,29 @@ function getCurrentInterpolatedPose() {
         if (State.playCurrentGlobalTime >= timeAccumulator && State.playCurrentGlobalTime < timeAccumulator + frameDuration) {
             const timeInFrame = State.playCurrentGlobalTime - timeAccumulator;
             const t = timeInFrame / frameDuration; 
-            return interpolatePoints(State.frames[i].points, State.frames[i+1].points, t);
+            
+            // Apply Easing (Smooth Physics-like feel)
+            // Using EaseInOutCubic for natural acceleration/deceleration
+            const easedT = EasingFunctions.easeInOutCubic(t);
+            
+            return interpolatePoints(State.frames[i].points, State.frames[i+1].points, easedT);
         }
         timeAccumulator += frameDuration;
     }
     return State.frames[State.frames.length - 1].points;
 }
+
+const EasingFunctions = {
+    linear: t => t,
+    // Smooth start and end (Natural)
+    easeInOutCubic: t => t < .5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+    // Spring-like overshoot (Optional, using cubic for now as it's cleaner)
+    easeOutBack: t => {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+};
 
 function interpolatePoints(pointsA, pointsB, t) {
     return pointsA.map((pA, index) => {
