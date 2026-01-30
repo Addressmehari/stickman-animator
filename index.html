@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stickman Animator Pro</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="app-container">
+      <header class="top-bar">
+        <div class="logo">
+          <span class="icon">⚡</span>
+          <h1>StickMotion</h1>
+        </div>
+        <div class="controls">
+          <button id="btn-play" class="btn btn-primary" title="Play Animation">
+            <span class="play-icon">▶</span> Play
+          </button>
+          <button
+            id="btn-stop"
+            class="btn btn-secondary hidden"
+            title="Stop Animation"
+          >
+            <span class="stop-icon">■</span> Stop
+          </button>
+          <button id="btn-export" class="btn btn-outline" title="Export JSON">
+            Export JSON
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <div class="canvas-wrapper">
+          <canvas id="anim-canvas" width="800" height="600"></canvas>
+          <div class="canvas-overlay">
+            <div class="frame-indicator">
+              Frame: <span id="current-frame-num">1</span>
+            </div>
+            <div class="onion-skin-toggle">
+              <label
+                ><input type="checkbox" id="chk-onion-skin" checked /> Onion
+                Skin</label
+              >
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer class="timeline-panel">
+        <div class="timeline-header">
+          <h3>Timeline</h3>
+          <button id="btn-add-frame" class="btn btn-sm btn-accent">
+            + New Frame
+          </button>
+        </div>
+        <div class="timeline-track-container">
+          <div id="timeline-track" class="timeline-track">
+            <!-- Frames will be injected here via JS -->
+            <!-- Example Structure:
+                    <div class="frame-card active">1</div>
+                    <div class="transition-bar">
+                        <input type="range" min="0.1" max="5.0" step="0.1" value="0.5">
+                        <span class="duration-label">0.5s</span>
+                    </div>
+                    <div class="frame-card">2</div> 
+                    -->
+          </div>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Modal for Export -->
+    <div id="export-modal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Export Animation</h2>
+          <button class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p>Your animation JSON structure:</p>
+          <textarea id="export-output" readonly></textarea>
+          <button id="btn-copy" class="btn btn-primary full-width">
+            Copy to Clipboard
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
