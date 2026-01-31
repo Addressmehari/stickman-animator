@@ -217,6 +217,38 @@ function setupEventListeners() {
     // Video/GIF Export (Placeholder for future)
     btnExport.addEventListener('click', showExportModal);
     closeModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
+    
+    // Import JSON
+    const btnImport = document.getElementById('btn-import');
+    const fileImport = document.getElementById('file-import');
+
+    btnImport.addEventListener('click', () => fileImport.click());
+
+    fileImport.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (data.keyframes && Array.isArray(data.keyframes)) {
+                    loadProject(data.keyframes);
+                } else if (Array.isArray(data)) {
+                     // Support raw array format if user edited it extensively
+                     loadProject(data);
+                } else {
+                    alert('Invalid JSON file. Missing "keyframes" array.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error parsing JSON file. Check console for details.');
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = ''; // Reset so same file can be selected again
+    });
+
     // Download JSON
     const btnDownload = document.getElementById('btn-download');
     btnDownload.addEventListener('click', () => {
@@ -260,6 +292,44 @@ function setupEventListeners() {
                 break;
         }
     });
+}
+
+function loadProject(keyframes) {
+    console.log("Loading project...", keyframes);
+    // Validate structure
+    try {
+        if (!keyframes || keyframes.length === 0) {
+            throw new Error("No keyframes found in file.");
+        }
+
+        const newFrames = keyframes.map((f, i) => ({
+            id: f.id || (Date.now() + i), // Ensure ID
+            duration: Number(f.duration) || 0.5,
+            points: f.points.map(p => ({
+                id: Number(p.id),
+                x: Number(p.x),
+                y: Number(p.y),
+                // Preserve easing if present
+                ...(p.easing ? { easing: p.easing } : {})
+            }))
+        }));
+
+        console.log("Parsed frames:", newFrames);
+
+        State.frames = newFrames;
+        State.currentFrameIndex = 0;
+        
+        // Force reset
+        if (State.selectedPointIndex !== null) deselectPoint();
+        
+        renderTimeline();
+        selectFrame(0); // This will also call draw() correctly
+        updateUIControls();
+        
+    } catch (e) {
+        console.error("Error loading project data", e);
+        alert("Failed to load project structure: " + e.message);
+    }
 }
 
 // --- Canvas Logic ---
