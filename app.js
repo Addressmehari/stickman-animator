@@ -146,6 +146,8 @@ const State = {
     isPlaying: false,
     draggedPointIndex: null,
     selectedPointIndex: null,
+    isIKEnabled: false,
+    ikDragData: null,
     isOnionSkinEnabled: true,
     lastFrameTime: 0,
     playStartTime: 0,
@@ -261,6 +263,15 @@ function setupEventListeners() {
         downloadAnchorNode.remove();
     });
 
+    // IK Toggle
+    const chkIK = document.getElementById('chk-ik-mode');
+    if (chkIK) {
+        chkIK.addEventListener('change', (e) => {
+            State.isIKEnabled = e.target.checked;
+            console.log("IK Enabled:", State.isIKEnabled);
+        });
+    }
+
     // --- Keyboard Shortcuts ---
     window.addEventListener('keydown', (e) => {
         // Ignore if typing in an input
@@ -332,6 +343,14 @@ function loadProject(keyframes) {
     }
 }
 
+// Map Leaf ID -> [MiddleJoint ID, RootJoint ID]
+const IK_CHAINS = {
+    4: [3, 1],   // L_Hand -> L_Elbow -> Neck
+    6: [5, 1],   // R_Hand -> R_Elbow -> Neck
+    9: [8, 7],   // L_Foot -> L_Knee -> Pelvis
+    11: [10, 7]  // R_Foot -> R_Knee -> Pelvis
+};
+
 // --- Canvas Logic ---
 function getMousePos(evt) {
     const rect = canvas.getBoundingClientRect();
@@ -355,6 +374,25 @@ function handleMouseDown(e) {
             State.draggedPointIndex = i;
             selectPoint(i); // Update Selection
             found = true;
+            
+            // Initialize IK Data if applicable
+            if (State.isIKEnabled && IK_CHAINS[i]) {
+                const [jointIdx, rootIdx] = IK_CHAINS[i];
+                const root = frame.points[rootIdx];
+                const joint = frame.points[jointIdx];
+                const effector = frame.points[i];
+                
+                State.ikDragData = {
+                    rootIdx,
+                    jointIdx,
+                    effectorIdx: i,
+                    // Capture lengths ONCE at start of drag to prevent shrinking/jitter
+                    d1: Math.hypot(joint.x - root.x, joint.y - root.y),
+                    d2: Math.hypot(effector.x - joint.x, effector.y - joint.y),
+                    // Capture initial bend direction
+                    bendDir: ((joint.x - root.x) * (effector.y - root.y) - (joint.y - root.y) * (effector.x - root.x)) > 0 ? 1 : -1
+                };
+            }
             break;
         }
     }
@@ -386,37 +424,54 @@ function handleMouseMove(e) {
 
     if (State.draggedPointIndex !== null) {
         const frame = State.frames[State.currentFrameIndex];
-        const pointIndex = State.draggedPointIndex;
-        const point = frame.points[pointIndex];
+        const points = frame.points;
+        const dragIdx = State.draggedPointIndex;
+        const point = points[dragIdx];
         
-        const dx = pos.x - point.x;
-        const dy = pos.y - point.y;
-        
-        point.x = pos.x;
-        point.y = pos.y;
-        
-        moveChildren(pointIndex, dx, dy, frame.points);
+        // Check for IK and ensure we have init data
+        if (State.isIKEnabled && State.ikDragData && State.ikDragData.effectorIdx === dragIdx) {
+            solveTwoJointIK(points, State.ikDragData, pos.x, pos.y);
+        } else {
+            // Standard FK
+            const dx = pos.x - point.x;
+            const dy = pos.y - point.y;
+            
+            point.x = pos.x;
+            point.y = pos.y;
+            
+            moveChildren(dragIdx, dx, dy, points);
+        }
         
         draw();
     } else {
-        // Hover Cursor
+        // Hover Cursor logic...
         const frame = State.frames[State.currentFrameIndex];
         let hovering = false;
-        for (let p of frame.points) {
+        let hoverIdx = -1;
+        
+        for (let i=0; i < frame.points.length; i++) {
+            const p = frame.points[i];
             const dist = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
             if (dist <= CONFIG.selectionRadius) {
                 hovering = true;
+                hoverIdx = i;
                 break;
             }
         }
-        canvas.style.cursor = hovering ? 'pointer' : 'crosshair';
+
+        if (hovering && State.isIKEnabled && IK_CHAINS[hoverIdx]) {
+            canvas.style.cursor = 'grab'; 
+        } else {
+            canvas.style.cursor = hovering ? 'pointer' : 'crosshair';
+        }
     }
 }
 
 function handleMouseUp() {
     if (State.draggedPointIndex !== null) {
         State.draggedPointIndex = null;
-        renderTimeline(); // Re-render thumbnails after edit
+        State.ikDragData = null; // Clear IK data
+        renderTimeline(); 
     }
 }
 
@@ -428,6 +483,59 @@ function moveChildren(parentId, dx, dy, points) {
             moveChildren(i, dx, dy, points);
         }
     }
+}
+
+// --- Inverse Kinematics Logic ---
+function solveTwoJointIK(points, ikData, targetX, targetY) {
+    const { rootIdx, jointIdx, effectorIdx, d1, d2, bendDir } = ikData;
+    
+    const root = points[rootIdx];
+    const joint = points[jointIdx];
+    const effector = points[effectorIdx];
+
+    // Distance from Root to Target
+    const distTarget = Math.hypot(targetX - root.x, targetY - root.y);
+    
+    // Clamp Target Distance (Cannot stretch beyond arm length)
+    // Use epsilon to avoid NaN
+    const maxDist = (d1 + d2) * 0.9999; 
+    let validDist = distTarget;
+    
+    if (distTarget > maxDist) {
+        validDist = maxDist;
+    } else if (distTarget < Math.abs(d1 - d2) + 0.001) {
+        // Don't let it fold onto itself completely (singularity)
+        validDist = Math.abs(d1 - d2) + 0.001;
+    }
+    
+    // Law of Cosines
+    // d2^2 = d1^2 + validDist^2 - 2*d1*validDist * cos(Alpha)
+    const cosAlpha = (d1*d1 + validDist*validDist - d2*d2) / (2 * d1 * validDist);
+    // Clamp safely
+    const angleAlpha = Math.acos(Math.max(-1, Math.min(1, cosAlpha))); 
+    
+    // Angle of the Target Vector relative to X-axis
+    const angleToTarget = Math.atan2(targetY - root.y, targetX - root.x);
+    
+    // Use stored bend preference (or dynamic if we wanted flip capability, but fixed is more stable)
+    // We can also check cross product to maintain consistency, but fixed `bendDir` from start of drag is smoothest
+    
+    const angleRoot = angleToTarget + (angleAlpha * bendDir);
+    
+    const newJointX = root.x + Math.cos(angleRoot) * d1;
+    const newJointY = root.y + Math.sin(angleRoot) * d1;
+    
+    // Joint to Target
+    const angleJointToTarget = Math.atan2(targetY - newJointY, targetX - newJointX);
+    const newEffectorX = newJointX + Math.cos(angleJointToTarget) * d2;
+    const newEffectorY = newJointY + Math.sin(angleJointToTarget) * d2;
+    
+    // Apply
+    joint.x = newJointX;
+    joint.y = newJointY;
+    
+    effector.x = newEffectorX;
+    effector.y = newEffectorY;
 }
 
 // --- Drawing ---
