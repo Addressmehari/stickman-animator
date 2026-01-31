@@ -80,15 +80,26 @@ body {
 .btn-outline:hover { background-color: rgba(255,255,255,0.1); }
 
 /* --- Workspace --- */
+/* --- Workspace (Layout) --- */
 .workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: row; /* Horizontal layout */
+    overflow: hidden;
+    position: relative;
+}
+
+.viewport {
     flex: 1;
     background-color: var(--bg-app);
     display: flex;
     justify-content: center;
     align-items: center;
-    position: relative;
     overflow: hidden;
-    padding: 20px;
+    position: relative;
+    /* Dot Grid Background for Viewport */
+    background-image: radial-gradient(#333 1px, transparent 1px);
+    background-size: 20px 20px;
 }
 
 .canvas-wrapper {
@@ -107,23 +118,252 @@ canvas {
     display: block;
 }
 
-.canvas-overlay {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background: rgba(0,0,0,0.7);
-    padding: 8px;
-    border-radius: 4px;
-    color: white;
-    font-size: 0.85rem;
+/* --- Sidebar Property Panel --- */
+.sidebar-right {
+    width: 300px;
+    background-color: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.2);
 }
 
-.canvas-overlay label {
+.sidebar-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(255,255,255,0.02);
+}
+
+.sidebar-header h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Panel Sections */
+.panel-section {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: all 0.2s ease;
+}
+
+.panel-section:hover {
+    border-color: #555;
+    background: rgba(255,255,255,0.05);
+}
+
+.panel-section.hidden {
+    display: none;
+}
+
+.panel-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.panel-title.highlight {
+    color: var(--accent);
+}
+
+/* Controls */
+.control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.control-group label {
+    font-size: 0.8rem;
+    color: #ccc;
+    display: flex;
+    justify-content: space-between;
+}
+
+.val-tag {
+    color: var(--primary);
+    font-family: monospace;
+}
+
+/* Custom Toggles */
+.toggle-control {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 10px;
     cursor: pointer;
-    margin-top: 5px;
+    font-size: 0.9rem;
+    user-select: none;
+}
+
+.toggle-control input[type="checkbox"] {
+    appearance: none;
+    width: 36px;
+    height: 20px;
+    background: #333;
+    border-radius: 20px;
+    position: relative;
+    transition: background 0.3s;
+    cursor: pointer;
+}
+
+.toggle-control input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.toggle-control input[type="checkbox"]:checked {
+    background: var(--accent);
+}
+
+.toggle-control input[type="checkbox"]:checked::after {
+    transform: translateX(16px);
+}
+
+.toggle-label {
+    color: var(--text-main);
+}
+
+/* Styled Inputs */
+.select-wrapper {
+    position: relative;
+}
+
+.select-wrapper select {
+    width: 100%;
+    padding: 8px;
+    background: #111;
+    border: 1px solid #444;
+    color: #eee;
+    border-radius: 4px;
+    appearance: none;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.select-wrapper::after {
+    content: '▼';
+    font-size: 0.7rem;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: #666;
+}
+
+.styled-range {
+    width: 100%;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    appearance: none;
+    outline: none;
+}
+
+.styled-range::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--primary);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+}
+
+/* Buttons */
+.btn-sidebar-action {
+    width: 100%;
+    padding: 8px;
+    background: #333;
+    border: 1px solid #444;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+}
+
+.btn-sidebar-action:hover {
+    background: #444;
+    border-color: #666;
+}
+
+.bg-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-sidebar-icon {
+    width: 32px; /* Square button */
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #333;
+    border: 1px solid #444;
+    color: #e57373;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-sidebar-icon:hover {
+    background: #444;
+}
+
+/* Frame Tag Overlay */
+.canvas-overlay-minimal {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    pointer-events: none;
+}
+
+.frame-tag {
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 /* --- Timeline (Simple & Clean) --- */
