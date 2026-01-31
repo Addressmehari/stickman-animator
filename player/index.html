@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StickMotion Player</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="player-container">
+        <header>
+            <h1>StickMotion <span>Player</span></h1>
+            <div class="controls">
+                <input type="file" id="file-input" accept=".json" class="hidden">
+                <button id="btn-import" class="btn">📂 Open Animation</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="canvas-wrapper">
+                <canvas id="player-canvas" width="800" height="600"></canvas>
+                <div id="loading-overlay" class="overlay hidden">Loading...</div>
+                <div id="start-overlay" class="overlay">Select an animation file to begin</div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="playback-controls">
+                <button id="btn-play-pause" class="btn-icon" disabled>▶</button>
+                <input type="range" id="scrubber" min="0" value="0" step="0.01" disabled>
+                <span id="time-display">0:00 / 0:00</span>
+            </div>
+        </footer>
+    </div>
+    <script src="player.js"></script>
+</body>
+</html>
