@@ -1,0 +1,65 @@
+/* Add to style.css */
+
+.point-properties {
+    margin-top: 15px;
+    background: rgba(40, 40, 40, 0.95);
+    border: 1px solid var(--accent);
+    padding: 10px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    backdrop-filter: blur(4px);
+    width: 200px;
+    /* Animate in */
+    animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.prop-header {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--accent);
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.prop-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.prop-row label {
+    font-size: 0.8rem;
+    color: #ccc;
+}
+
+.prop-row select {
+    background: #111;
+    border: 1px solid #444;
+    color: #eee;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.prop-row select:focus {
+    border-color: var(--accent);
+}
+
+.prop-row select option {
+    background: #222;
+}
+
+/* Ensure hidden works with specificity */
+.point-properties.hidden {
+    display: none !important;
+}

@@ -145,6 +145,7 @@ const State = {
     currentFrameIndex: 0,
     isPlaying: false,
     draggedPointIndex: null,
+    selectedPointIndex: null,
     isOnionSkinEnabled: true,
     lastFrameTime: 0,
     playStartTime: 0,
@@ -167,6 +168,10 @@ const exportOutput = document.getElementById('export-output');
 const closeModalBtn = document.querySelector('.close-modal');
 const btnCopy = document.getElementById('btn-copy');
 const chkOnionSkin = document.getElementById('chk-onion-skin');
+
+// New Property Panel Elements
+const panelProperties = document.getElementById('point-properties');
+const selectEasing = document.getElementById('point-easing');
 
 // --- Initialization ---
 function init() {
@@ -199,6 +204,16 @@ function setupEventListeners() {
         if (!State.isPlaying) draw();
     });
 
+    // Property Panel Inputs
+    selectEasing.addEventListener('change', (e) => {
+        if (State.selectedPointIndex !== null && State.frames[State.currentFrameIndex]) {
+            const point = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+            point.easing = e.target.value;
+            // No need to redraw immediately if static, checking selection highlight?
+            // Actually, we should save state.
+        }
+    });
+
     // Video/GIF Export (Placeholder for future)
     btnExport.addEventListener('click', showExportModal);
     closeModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
@@ -212,7 +227,7 @@ function setupEventListeners() {
     // --- Keyboard Shortcuts ---
     window.addEventListener('keydown', (e) => {
         // Ignore if typing in an input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
 
         switch(e.key) {
             case ' ':
@@ -256,15 +271,38 @@ function handleMouseDown(e) {
     const pos = getMousePos(e);
     const frame = State.frames[State.currentFrameIndex];
     
+    let found = false;
     // Find clicked point 
     for (let i = 0; i < frame.points.length; i++) {
         const p = frame.points[i];
         const dist = Math.sqrt((pos.x - p.x) ** 2 + (pos.y - p.y) ** 2);
         if (dist <= CONFIG.selectionRadius) {
             State.draggedPointIndex = i;
+            selectPoint(i); // Update Selection
+            found = true;
             break;
         }
     }
+    
+    if (!found) {
+        deselectPoint();
+    }
+}
+
+function selectPoint(index) {
+    State.selectedPointIndex = index;
+    panelProperties.classList.remove('hidden');
+    
+    // Update Properties Panel values
+    const point = State.frames[State.currentFrameIndex].points[index];
+    selectEasing.value = point.easing || 'easeInOutCubic';
+    draw();
+}
+
+function deselectPoint() {
+    State.selectedPointIndex = null;
+    panelProperties.classList.add('hidden');
+    draw();
 }
 
 function handleMouseMove(e) {
@@ -342,6 +380,17 @@ function draw() {
         }
         // Static Frame
         drawStickman(ctx, State.frames[State.currentFrameIndex].points, CONFIG.skeletonColor, 1, 1, 0, 0, false);
+
+        // Draw Selection Highlight
+        if (State.selectedPointIndex !== null) {
+            const p = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+            ctx.beginPath();
+            ctx.strokeStyle = '#f44336'; // Red Highlight
+            ctx.lineWidth = 2;
+            ctx.arc(p.x, p.y, CONFIG.selectionRadius + 2, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.lineWidth = 1; 
+        }
     }
 }
 
@@ -386,7 +435,7 @@ function drawStickman(context, points, color, opacity, scale = 1, offsetX = 0, o
     if (scale === 1) { 
         points.forEach(p => {
             context.beginPath();
-            context.fillStyle = CONFIG.junctionColor;
+            context.fillStyle = (State.selectedPointIndex === p.id && !State.isPlaying) ? '#ff5252' : CONFIG.junctionColor;
             
             let px = p.x;
             let py = p.y;
@@ -500,16 +549,9 @@ function updateUIControls() {
 function selectFrame(index) {
     if (State.isPlaying) return;
     State.currentFrameIndex = index;
+    deselectPoint(); // Reset selection when changing frames
     frameNumDisplay.textContent = index + 1;
-    // Only update active class to avoid full re-render lag
-    Array.from(document.querySelectorAll('.frame-card')).forEach((el, i) => {
-        if(i === index) el.classList.add('active');
-        else el.classList.remove('active');
-    });
-    
-    // Also scroll the timeline to keep selection in view
-    // Not strictly necessary but good for UX
-    
+    renderTimeline(); // Refresh to update active class
     draw();
 }
 
@@ -525,8 +567,8 @@ function addNewFrame() {
 
     State.frames.splice(State.currentFrameIndex + 1, 0, newFrame);
     State.currentFrameIndex++;
+    deselectPoint();
     renderTimeline();
-    updateUIControls();
     draw();
 }
 
@@ -537,8 +579,8 @@ function deleteFrame(index) {
     if (State.currentFrameIndex >= State.frames.length) {
         State.currentFrameIndex = State.frames.length - 1;
     }
+    deselectPoint();
     renderTimeline();
-    updateUIControls();
     draw();
 }
 
@@ -591,12 +633,10 @@ function getPoseAtTime(globalTime) {
         
         if (globalTime >= timeAccumulator && globalTime < timeAccumulator + frameDuration) {
             const timeInFrame = globalTime - timeAccumulator;
+            // Pass linear T (0 to 1)
             const t = timeInFrame / frameDuration; 
             
-            // Apply Easing
-            const easedT = EasingFunctions.easeInOutCubic(t);
-            
-            return interpolatePoints(State.frames[i].points, State.frames[i+1].points, easedT);
+            return interpolatePoints(State.frames[i].points, State.frames[i+1].points, t);
         }
         timeAccumulator += frameDuration;
     }
@@ -607,41 +647,70 @@ function getCurrentInterpolatedPose() {
     return getPoseAtTime(State.playCurrentGlobalTime);
 }
 
+// Expanded Easing Functions
 const EasingFunctions = {
     linear: t => t,
-    // Smooth start and end
     easeInOutCubic: t => t < .5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1,
+    easeInQuad: t => t * t,
+    easeOutQuad: t => t * (2 - t),
     easeOutBack: t => {
         const c1 = 1.70158;
         const c3 = c1 + 1;
         return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    },
+    easeOutElastic: t => {
+        const c4 = (2 * Math.PI) / 3;
+        return t === 0 ? 0 : t === 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+    },
+    easeOutBounce: t => {
+        const n1 = 7.5625;
+        const d1 = 2.75;
+        if (t < 1 / d1) {
+            return n1 * t * t;
+        } else if (t < 2 / d1) {
+            return n1 * (t -= 1.5 / d1) * t + 0.75;
+        } else if (t < 2.5 / d1) {
+            return n1 * (t -= 2.25 / d1) * t + 0.9375;
+        } else {
+            return n1 * (t -= 2.625 / d1) * t + 0.984375;
+        }
     }
 };
 
 // Hardcoded topological sort order (Parent -> Children) for FK Calculation
 const FK_TRAVERSAL_ORDER = [7, 2, 8, 10, 1, 9, 11, 0, 3, 5, 4, 6];
 
-function interpolatePoints(pointsA, pointsB, t) {
-    // ... (Existing FK Logic remains unchanged) ...
-    // Note: Re-stating just for context, but in replace_file tool we just need to ensure the surrounding code matches.
-    // The user's content already has this FK logic from previous step. 
-    // We are replacing everything from getCurrentInterpolatedPose down to interpolatePoints.
-    
+// Updated Interpolate Points for Per-Point Easing
+function interpolatePoints(pointsA, pointsB, linearT) {
     const resultPoints = new Array(pointsA.length);
+    const defaultEasing = 'easeInOutCubic';
 
-    // 1. Root (Pelvis id:7) moves Linearly
+    // Helper to get eased T for a specific point index
+    const getT = (idx) => {
+        // We use the easing function defined on the TARGET point (Frame B)
+        // because it defines how we get *to* that state.
+        const type = pointsB[idx].easing || defaultEasing;
+        const fn = EasingFunctions[type] || EasingFunctions[defaultEasing];
+        return fn(linearT);
+    };
+
+    // 1. Root (Pelvis id:7)
     const rootA = pointsA[7];
     const rootB = pointsB[7];
     
     if (!rootA || !rootB) return pointsA; 
 
+    // Calculate T specifically for Root
+    const tRoot = getT(7);
+
     resultPoints[7] = {
         id: 7,
-        x: rootA.x + (rootB.x - rootA.x) * t,
-        y: rootA.y + (rootB.y - rootA.y) * t
+        x: rootA.x + (rootB.x - rootA.x) * tRoot,
+        y: rootA.y + (rootB.y - rootA.y) * tRoot,
+        easing: rootB.easing // Carry over easing property
     };
 
-    // 2. Children rotate around parents
+    // 2. Children
     for (let i = 0; i < FK_TRAVERSAL_ORDER.length; i++) {
         const idx = FK_TRAVERSAL_ORDER[i];
         if (idx === 7) continue; 
@@ -654,6 +723,9 @@ function interpolatePoints(pointsA, pointsB, t) {
         
         const selfB = pointsB[idx];
         const parentB = pointsB[parentIdx];
+
+        // Specific T for this joint's rotation/extension
+        const tJoint = getT(idx);
 
         const dxA = selfA.x - parentA.x;
         const dyA = selfA.y - parentA.y;
@@ -669,13 +741,14 @@ function interpolatePoints(pointsA, pointsB, t) {
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
         
-        const angleT = angleA + diff * t;
-        const lenT = lenA + (lenB - lenA) * t;
+        const angleT = angleA + diff * tJoint;
+        const lenT = lenA + (lenB - lenA) * tJoint;
 
         resultPoints[idx] = {
             id: idx,
             x: parentNew.x + Math.cos(angleT) * lenT,
-            y: parentNew.y + Math.sin(angleT) * lenT
+            y: parentNew.y + Math.sin(angleT) * lenT,
+            easing: selfB.easing // Carry over easing property
         };
     }
 
@@ -721,7 +794,11 @@ function showExportModal() {
         keyframes: State.frames.map((f, i) => ({
             id: i + 1,
             duration: f.duration,
-            points: f.points.map(p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y) }))
+            points: f.points.map(p => {
+                const pt = { id: p.id, x: Math.round(p.x), y: Math.round(p.y) };
+                if (p.easing) pt.easing = p.easing;
+                return pt;
+            })
         })),
         // Baked Animation (Result with in-betweens)
         bakedAnimation: bakedFrames
