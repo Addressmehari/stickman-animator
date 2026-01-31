@@ -166,7 +166,7 @@ const btnDeleteFrame = document.getElementById('btn-delete-frame'); // New Butto
 const exportModal = document.getElementById('export-modal');
 const exportOutput = document.getElementById('export-output');
 const closeModalBtn = document.querySelector('.close-modal');
-const btnCopy = document.getElementById('btn-copy');
+// const btnCopy = document.getElementById('btn-copy'); // Removed
 const chkOnionSkin = document.getElementById('chk-onion-skin');
 
 // New Property Panel Elements
@@ -217,11 +217,16 @@ function setupEventListeners() {
     // Video/GIF Export (Placeholder for future)
     btnExport.addEventListener('click', showExportModal);
     closeModalBtn.addEventListener('click', () => exportModal.classList.add('hidden'));
-    btnCopy.addEventListener('click', () => {
-        exportOutput.select();
-        document.execCommand('copy');
-        btnCopy.textContent = "Copied!";
-        setTimeout(() => btnCopy.textContent = "Copy to Clipboard", 2000);
+    // Download JSON
+    const btnDownload = document.getElementById('btn-download');
+    btnDownload.addEventListener('click', () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(exportOutput.value);
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", "animation.json");
+        document.body.appendChild(downloadAnchorNode); // required for firefox
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
     });
 
     // --- Keyboard Shortcuts ---
