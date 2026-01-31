@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stickman Animator Pro</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -72,6 +73,20 @@
               <label title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees">
                 <input type="checkbox" id="chk-ik-mode" /> Enable IK Mode 🦾
               </label>
+            </div>
+
+            <!-- Background / Rotoscoping -->
+            <div class="bg-controls">
+                <div class="bg-header">Rotoscoping (Bg)</div>
+                <div class="bg-actions">
+                    <button id="btn-upload-bg" class="btn-xs">📂 Load Media</button>
+                    <input type="file" id="file-bg" accept="image/*,video/*" class="hidden">
+                    <button id="btn-clear-bg" class="btn-xs hidden">✕</button>
+                </div>
+                <div id="bg-settings" class="bg-settings hidden">
+                     <label>Opacity: <span id="bg-opacity-val">50%</span></label>
+                     <input type="range" id="rng-bg-opacity" min="0" max="1" step="0.1" value="0.5">
+                </div>
             </div>
             
           </div>

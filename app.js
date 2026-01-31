@@ -148,6 +148,7 @@ const State = {
     selectedPointIndex: null,
     isIKEnabled: false,
     ikDragData: null,
+    background: null,
     isOnionSkinEnabled: true,
     lastFrameTime: 0,
     playStartTime: 0,
@@ -269,6 +270,75 @@ function setupEventListeners() {
         chkIK.addEventListener('change', (e) => {
             State.isIKEnabled = e.target.checked;
             console.log("IK Enabled:", State.isIKEnabled);
+        });
+    }
+
+    // Rotoscoping Controls
+    const btnUploadBg = document.getElementById('btn-upload-bg');
+    const fileBg = document.getElementById('file-bg');
+    const btnClearBg = document.getElementById('btn-clear-bg');
+    const divBgSettings = document.getElementById('bg-settings');
+    const rngBgOpacity = document.getElementById('rng-bg-opacity');
+    const lblBgOpacity = document.getElementById('bg-opacity-val');
+
+    if (btnUploadBg && fileBg) {
+        btnUploadBg.addEventListener('click', () => fileBg.click());
+
+        fileBg.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const url = URL.createObjectURL(file);
+            const type = file.type.startsWith('video') ? 'video' : 'image';
+            
+            let media;
+            if (type === 'video') {
+                media = document.createElement('video');
+                media.src = url;
+                media.muted = true; 
+                media.loop = true; 
+                media.onloadedmetadata = () => draw();
+            } else {
+                media = new Image();
+                media.src = url;
+                media.onload = () => draw();
+            }
+            
+            State.background = {
+                media: media,
+                type: type,
+                opacity: 0.5,
+                url: url 
+            };
+            
+            // UI
+            divBgSettings.classList.remove('hidden');
+            btnClearBg.classList.remove('hidden');
+            btnUploadBg.textContent = "Change Media"; 
+        });
+    }
+
+    if (rngBgOpacity) {
+        rngBgOpacity.addEventListener('input', (e) => {
+            if (State.background) {
+                State.background.opacity = parseFloat(e.target.value);
+                lblBgOpacity.textContent = Math.round(State.background.opacity * 100) + '%';
+                draw();
+            }
+        });
+    }
+
+    if (btnClearBg) {
+        btnClearBg.addEventListener('click', () => {
+            if (State.background && State.background.url) {
+                URL.revokeObjectURL(State.background.url);
+            }
+            State.background = null;
+            divBgSettings.classList.add('hidden');
+            btnClearBg.classList.add('hidden');
+            btnUploadBg.textContent = "📂 Load Media";
+            fileBg.value = '';
+            draw();
         });
     }
 
@@ -541,6 +611,56 @@ function solveTwoJointIK(points, ikData, targetX, targetY) {
 // --- Drawing ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Use clearRect
+
+    // 1. Draw Background (Rotoscoping)
+    if (State.background && State.background.media) {
+        ctx.save();
+        ctx.globalAlpha = State.background.opacity;
+        
+        const media = State.background.media;
+        
+        // Sync Video Time
+        if (State.background.type === 'video') {
+            let targetTime = 0;
+            if (State.isPlaying) {
+                targetTime = State.playCurrentGlobalTime;
+            } else {
+                // Determine time based on current frame start
+                for (let i = 0; i < State.currentFrameIndex; i++) {
+                    targetTime += State.frames[i].duration;
+                }
+            }
+            
+            if (Math.abs(media.currentTime - targetTime) > 0.1) {
+                media.currentTime = targetTime;
+            }
+        }
+
+        // Draw 'Contain' style
+        const cRatio = canvas.width / canvas.height;
+        let mWidth = media.videoWidth || media.width;
+        let mHeight = media.videoHeight || media.height;
+        
+        if (mWidth && mHeight) {
+            const mRatio = mWidth / mHeight;
+            let drawW, drawH, drawX, drawY;
+            
+            if (mRatio > cRatio) {
+                drawW = canvas.width;
+                drawH = canvas.width / mRatio;
+                drawX = 0;
+                drawY = (canvas.height - drawH) / 2;
+            } else {
+                drawH = canvas.height;
+                drawW = canvas.height * mRatio;
+                drawY = 0;
+                drawX = (canvas.width - drawW) / 2;
+            }
+            
+            ctx.drawImage(media, drawX, drawY, drawW, drawH);
+        }
+        ctx.restore();
+    }
 
     if (State.isPlaying) {
         // Render Interpolated Frame with Jitter
