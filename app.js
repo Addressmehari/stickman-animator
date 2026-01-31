@@ -149,6 +149,7 @@ const State = {
     isIKEnabled: false,
     ikDragData: null,
     background: null,
+    isDraggingBg: false,
     isOnionSkinEnabled: true,
     lastFrameTime: 0,
     playStartTime: 0,
@@ -280,6 +281,7 @@ function setupEventListeners() {
     const divBgSettings = document.getElementById('bg-settings');
     const rngBgOpacity = document.getElementById('rng-bg-opacity');
     const lblBgOpacity = document.getElementById('bg-opacity-val');
+    const chkEditBg = document.getElementById('chk-edit-bg');
 
     if (btnUploadBg && fileBg) {
         btnUploadBg.addEventListener('click', () => fileBg.click());
@@ -308,13 +310,17 @@ function setupEventListeners() {
                 media: media,
                 type: type,
                 opacity: 0.5,
-                url: url 
+                url: url,
+                x: 0,
+                y: 0,
+                scale: 1.0
             };
             
             // UI
             divBgSettings.classList.remove('hidden');
             btnClearBg.classList.remove('hidden');
             btnUploadBg.textContent = "Change Media"; 
+            if(chkEditBg) chkEditBg.checked = false; 
         });
     }
 
@@ -330,6 +336,7 @@ function setupEventListeners() {
 
     if (btnClearBg) {
         btnClearBg.addEventListener('click', () => {
+             // ... same as before
             if (State.background && State.background.url) {
                 URL.revokeObjectURL(State.background.url);
             }
@@ -341,6 +348,17 @@ function setupEventListeners() {
             draw();
         });
     }
+
+    // Wheel Event for Scaling Background
+    canvas.addEventListener('wheel', (e) => {
+        if (State.background && chkEditBg && chkEditBg.checked) {
+            e.preventDefault();
+            const zoomSpeed = 0.1;
+            const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+            State.background.scale = Math.max(0.1, State.background.scale + delta);
+            draw();
+        }
+    });
 
     // --- Keyboard Shortcuts ---
     window.addEventListener('keydown', (e) => {
@@ -433,8 +451,16 @@ function getMousePos(evt) {
 function handleMouseDown(e) {
     if (State.isPlaying) return;
     const pos = getMousePos(e);
-    const frame = State.frames[State.currentFrameIndex];
     
+    // Check Background Edit Mode
+    const chkEditBg = document.getElementById('chk-edit-bg');
+    if (State.background && chkEditBg && chkEditBg.checked) {
+        State.isDraggingBg = true;
+        State.lastMousePos = pos;
+        return; // Skip stickman selection
+    }
+
+    const frame = State.frames[State.currentFrameIndex];
     let found = false;
     // Find clicked point 
     for (let i = 0; i < frame.points.length; i++) {
@@ -456,10 +482,8 @@ function handleMouseDown(e) {
                     rootIdx,
                     jointIdx,
                     effectorIdx: i,
-                    // Capture lengths ONCE at start of drag to prevent shrinking/jitter
                     d1: Math.hypot(joint.x - root.x, joint.y - root.y),
                     d2: Math.hypot(effector.x - joint.x, effector.y - joint.y),
-                    // Capture initial bend direction
                     bendDir: ((joint.x - root.x) * (effector.y - root.y) - (joint.y - root.y) * (effector.x - root.x)) > 0 ? 1 : -1
                 };
             }
@@ -492,6 +516,17 @@ function handleMouseMove(e) {
     if (State.isPlaying) return;
     const pos = getMousePos(e);
 
+    // Background Dragging
+    if (State.isDraggingBg && State.background) {
+        const dx = pos.x - State.lastMousePos.x;
+        const dy = pos.y - State.lastMousePos.y;
+        State.background.x += dx;
+        State.background.y += dy;
+        State.lastMousePos = pos;
+        draw();
+        return;
+    }
+
     if (State.draggedPointIndex !== null) {
         const frame = State.frames[State.currentFrameIndex];
         const points = frame.points;
@@ -514,7 +549,13 @@ function handleMouseMove(e) {
         
         draw();
     } else {
-        // Hover Cursor logic...
+        // Hover Cursor logic
+        const chkEditBg = document.getElementById('chk-edit-bg');
+        if (State.background && chkEditBg && chkEditBg.checked) {
+             canvas.style.cursor = 'move';
+             return;
+        }
+
         const frame = State.frames[State.currentFrameIndex];
         let hovering = false;
         let hoverIdx = -1;
@@ -538,6 +579,8 @@ function handleMouseMove(e) {
 }
 
 function handleMouseUp() {
+    State.isDraggingBg = false; 
+    
     if (State.draggedPointIndex !== null) {
         State.draggedPointIndex = null;
         State.ikDragData = null; // Clear IK data
@@ -636,32 +679,23 @@ function draw() {
             }
         }
 
-        // Draw 'Contain' style
-        const cRatio = canvas.width / canvas.height;
+        // Apply Transform
+        // 1. Translate to center + offset
+        ctx.translate(canvas.width/2 + State.background.x, canvas.height/2 + State.background.y);
+        // 2. Scale
+        ctx.scale(State.background.scale, State.background.scale);
+        
+        // Calculate centered draw pos for the media itself
         let mWidth = media.videoWidth || media.width;
         let mHeight = media.videoHeight || media.height;
         
         if (mWidth && mHeight) {
-            const mRatio = mWidth / mHeight;
-            let drawW, drawH, drawX, drawY;
-            
-            if (mRatio > cRatio) {
-                drawW = canvas.width;
-                drawH = canvas.width / mRatio;
-                drawX = 0;
-                drawY = (canvas.height - drawH) / 2;
-            } else {
-                drawH = canvas.height;
-                drawW = canvas.height * mRatio;
-                drawY = 0;
-                drawX = (canvas.width - drawW) / 2;
-            }
-            
-            ctx.drawImage(media, drawX, drawY, drawW, drawH);
+             ctx.drawImage(media, -mWidth/2, -mHeight/2, mWidth, mHeight);
         }
+        
         ctx.restore();
     }
-
+    
     if (State.isPlaying) {
         // Render Interpolated Frame with Jitter
         // Pass 'true' for isPlaying to enable Jitter
