@@ -321,6 +321,26 @@ function setupEventListeners() {
             btnClearBg.classList.remove('hidden');
             btnUploadBg.textContent = "Change Media"; 
             if(chkEditBg) chkEditBg.checked = false; 
+            
+            // Reset Scale Slider
+            if(rngBgScale) {
+                rngBgScale.value = 1.0;
+                lblBgScale.textContent = "1.0x";
+            }
+        });
+    }
+    
+    // Scale Slider Listener
+    const rngBgScale = document.getElementById('rng-bg-scale');
+    const lblBgScale = document.getElementById('bg-scale-val');
+    
+    if (rngBgScale) {
+        rngBgScale.addEventListener('input', (e) => {
+            if (State.background) {
+                State.background.scale = parseFloat(e.target.value);
+                lblBgScale.textContent = State.background.scale.toFixed(1) + 'x';
+                draw();
+            }
         });
     }
 
@@ -356,6 +376,13 @@ function setupEventListeners() {
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
             State.background.scale = Math.max(0.1, State.background.scale + delta);
+            
+            // Sync Slider
+            if (rngBgScale) {
+                rngBgScale.value = State.background.scale;
+                lblBgScale.textContent = State.background.scale.toFixed(1) + 'x';
+            }
+            
             draw();
         }
     });
