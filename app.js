@@ -724,34 +724,76 @@ function draw() {
     }
     
     if (State.isPlaying) {
-        // Render Interpolated Frame with Jitter
-        // Pass 'true' for isPlaying to enable Jitter
+        // ... (Playback Render) ...
         drawStickman(ctx, getCurrentInterpolatedPose(), CONFIG.skeletonColor, 1, 1, 0, 0, true);
         
-        // Audio Trigger Logic
-        // Trigger a scuff sound every ~150-200ms during movement
         if (State.playCurrentGlobalTime - State.playLastScuffTime > 0.15) {
-             // Only play if there is significant movement (optional, but keep simple for now)
              AudioEngine.playPaperScuff(Math.random() * 0.5 + 0.5);
              State.playLastScuffTime = State.playCurrentGlobalTime;
         }
 
     } else {
+        // ... (Edit Mode Render) ...
+        
+        // 1. Onion Skin
         if (State.isOnionSkinEnabled && State.currentFrameIndex > 0) {
             const prevFrame = State.frames[State.currentFrameIndex - 1];
-            // Static, no jitter
             drawStickman(ctx, prevFrame.points, CONFIG.onionSkinColor, 0.4, 1, 0, 0, false);
         }
-        // Static Frame
+        
+        // 2. Current Frame
         drawStickman(ctx, State.frames[State.currentFrameIndex].points, CONFIG.skeletonColor, 1, 1, 0, 0, false);
 
-        // Draw Selection Highlight
+        // 3. Selection & Motion Trails
         if (State.selectedPointIndex !== null) {
-            const p = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+            const currentPoint = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+            
+            // --- Motion Trail Logic ---
+            // Draw path of this point across ALL frames (or a window)
+            ctx.save();
+            ctx.strokeStyle = 'cyan';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]); // Dotted Line
             ctx.beginPath();
-            ctx.strokeStyle = '#f44336'; // Red Highlight
+            
+            // Loop through all frames to find position of the *same* point ID
+            // Since point index matches ID in this rig, we use selectedPointIndex
+            let hasStarted = false;
+            
+            State.frames.forEach((frame, idx) => {
+                const p = frame.points[State.selectedPointIndex];
+                if (idx === 0) {
+                    ctx.moveTo(p.x, p.y);
+                    hasStarted = true;
+                } else {
+                    ctx.lineTo(p.x, p.y);
+                }
+                
+                // Draw small dot at each frame keyframe
+                // Don't stroke the path yet, just adding to path
+            });
+            ctx.stroke();
+            
+            // Draw Keyframe Dots on the path
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'cyan';
+            State.frames.forEach((frame, idx) => {
+                const p = frame.points[State.selectedPointIndex];
+                // Highlight current frame's point differently?
+                const r = idx === State.currentFrameIndex ? 4 : 2;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+                ctx.fill();
+            });
+            
+            ctx.restore();
+            // --------------------------
+
+            // Highlight Selected Point
+            ctx.beginPath();
+            ctx.strokeStyle = '#f44336'; 
             ctx.lineWidth = 2;
-            ctx.arc(p.x, p.y, CONFIG.selectionRadius + 2, 0, Math.PI * 2);
+            ctx.arc(currentPoint.x, currentPoint.y, CONFIG.selectionRadius + 2, 0, Math.PI * 2);
             ctx.stroke();
             ctx.lineWidth = 1; 
         }
