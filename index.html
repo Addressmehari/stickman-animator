@@ -41,65 +41,97 @@
       </header>
 
       <main class="workspace">
-        <div class="canvas-wrapper">
-          <canvas id="anim-canvas" width="800" height="600"></canvas>
-          <div class="canvas-overlay">
-            <div class="frame-indicator">
-              Frame: <span id="current-frame-num">1</span>
+        <div class="viewport">
+          <div class="canvas-wrapper">
+            <canvas id="anim-canvas" width="800" height="600"></canvas>
+            <div class="canvas-overlay-minimal">
+               <div class="frame-tag">Frame <span id="current-frame-num">1</span></div>
             </div>
-            <div class="onion-skin-toggle">
-              <label>
-                <input type="checkbox" id="chk-onion-skin" checked /> Onion Skin
-              </label>
-            </div>
-            <!-- New Point Properties Panel -->
-            <div id="point-properties" class="point-properties hidden">
-              <div class="prop-header">Selected Point</div>
-              <div class="prop-row">
-                <label for="point-easing">Transition:</label>
-                <select id="point-easing">
-                  <option value="linear">Linear</option>
-                  <option value="easeInOutCubic">Smooth (Default)</option>
-                  <option value="easeInQuad">Ease In</option>
-                  <option value="easeOutQuad">Ease Out</option>
-                  <option value="easeOutBack">Overshoot</option>
-                  <option value="easeOutElastic">Elastic</option>
-                  <option value="easeOutBounce">Bounce</option>
-                </select>
-              </div>
-            </div>
-            
-             <div class="ik-toggle">
-              <label title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees">
-                <input type="checkbox" id="chk-ik-mode" /> Enable IK Mode 🦾
-              </label>
-            </div>
-
-            <!-- Background / Rotoscoping -->
-            <div class="bg-controls">
-                <div class="bg-header">Rotoscoping (Bg)</div>
-                <div class="bg-actions">
-                    <button id="btn-upload-bg" class="btn-xs">📂 Load Media</button>
-                    <input type="file" id="file-bg" accept="image/*,video/*" class="hidden">
-                    <button id="btn-clear-bg" class="btn-xs hidden">✕</button>
-                </div>
-                <div id="bg-settings" class="bg-settings hidden">
-                     <label>Opacity: <span id="bg-opacity-val">50%</span></label>
-                     <input type="range" id="rng-bg-opacity" min="0" max="1" step="0.1" value="0.5">
-                     
-                     <label title="Check this to Drag (Move) or Scroll (Scale) the background image">
-                        <input type="checkbox" id="chk-edit-bg"> Move/Scale (Drag/Wheel)
-                     </label>
-                     
-                     <div class="scale-controls" style="margin-top: 5px;">
-                        <label>Scale: <span id="bg-scale-val">1.0x</span></label>
-                        <input type="range" id="rng-bg-scale" min="0.1" max="5.0" step="0.1" value="1.0">
-                     </div>
-                </div>
-            </div>
-            
           </div>
         </div>
+
+        <aside class="sidebar-right">
+          <div class="sidebar-header">
+            <h2>Properties</h2>
+          </div>
+
+          <div class="sidebar-content">
+            
+            <!-- Section: View Options -->
+            <div class="panel-section">
+              <div class="panel-title">View Options</div>
+              <div class="control-row">
+                <label class="toggle-control">
+                  <input type="checkbox" id="chk-onion-skin" checked />
+                  <span class="toggle-label">Onion Skin</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Section: Tool Settings -->
+            <div class="panel-section">
+              <div class="panel-title">Tool Settings</div>
+               <div class="control-row">
+                <label class="toggle-control" title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees">
+                  <input type="checkbox" id="chk-ik-mode" />
+                  <span class="toggle-label">Enable IK Mode 🦾</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Section: Selected Point -->
+            <div id="point-properties" class="panel-section hidden">
+              <div class="panel-title highlight">Selected Joint</div>
+              <div class="control-group">
+                <label for="point-easing">Transition</label>
+                <div class="select-wrapper">
+                  <select id="point-easing">
+                    <option value="linear">Linear</option>
+                    <option value="easeInOutCubic">Smooth (Default)</option>
+                    <option value="easeInQuad">Ease In</option>
+                    <option value="easeOutQuad">Ease Out</option>
+                    <option value="easeOutBack">Overshoot</option>
+                    <option value="easeOutElastic">Elastic</option>
+                    <option value="easeOutBounce">Bounce</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section: Rotoscoping -->
+            <div class="panel-section">
+              <div class="panel-title">Rotoscopy (Background)</div>
+              
+              <div class="bg-actions">
+                  <button id="btn-upload-bg" class="btn-sidebar-action">
+                    Load Media
+                  </button>
+                  <input type="file" id="file-bg" accept="image/*,video/*" class="hidden">
+                  <button id="btn-clear-bg" class="btn-sidebar-icon hidden" title="Clear">✕</button>
+              </div>
+
+              <div id="bg-settings" class="bg-settings hidden">
+                   <div class="control-group">
+                     <label>Opacity <span id="bg-opacity-val" class="val-tag">50%</span></label>
+                     <input type="range" id="rng-bg-opacity" min="0" max="1" step="0.1" value="0.5" class="styled-range">
+                   </div>
+                   
+                   <div class="control-group">
+                      <label>Scale <span id="bg-scale-val" class="val-tag">1.0x</span></label>
+                      <input type="range" id="rng-bg-scale" min="0.1" max="5.0" step="0.1" value="1.0" class="styled-range">
+                   </div>
+
+                   <div class="control-row">
+                      <label class="toggle-control" title="Edit Background Position/Scale">
+                        <input type="checkbox" id="chk-edit-bg"> 
+                        <span class="toggle-label">Edit Mode</span>
+                      </label>
+                   </div>
+              </div>
+            </div>
+
+          </div>
+        </aside>
       </main>
 
       <footer class="timeline-panel">
