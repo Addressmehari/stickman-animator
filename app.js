@@ -1127,16 +1127,17 @@ function playbackLoop(timestamp) {
 
     if (State.playbackMode === 'loop') {
         if (elapsed > totalDuration) {
-            // Modulo for seamless looping without drifting start time extensively
-            // or just simple reset if we don't care about absolute sync
             elapsed = elapsed % totalDuration;
-            // Note: Mutating 'elapsed' here strictly for local calculation, 
-            // but for next frame requestAnimationFrame will pass new timestamp.
-            // A better way to loop 'time' without resetting a base timestamp constantly
-            // is using modulo on the diff.
         }
-        effectiveTime = elapsed % totalDuration;
+        effectiveTime = elapsed;
     
+    } else if (State.playbackMode === 'reverse') {
+        // Reverse Loop: End -> Start -> End
+        if (elapsed > totalDuration) {
+            elapsed = elapsed % totalDuration;
+        }
+        effectiveTime = totalDuration - elapsed;
+
     } else if (State.playbackMode === 'pingpong') {
         const cycle = totalDuration * 2;
         let t = elapsed % cycle;
