@@ -1,0 +1,106 @@
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    /* Layout Orientation */
+    .workspace {
+        flex-direction: column;
+        overflow-y: auto; /* Allow vertical scrolling for controls */
+        height: auto;
+        flex: 1; /* reset from fix flex */
+    }
+
+    /* Header Compactness */
+    .top-bar {
+        padding: 0 10px;
+        height: 50px;
+        overflow-x: auto; /* Allow scrolling for many buttons */
+    }
+
+    .logo h1 {
+        display: none; /* Hide text logo to save space */
+    }
+    
+    .logo .icon {
+        font-size: 1.5rem;
+    }
+
+    .controls {
+        gap: 5px;
+    }
+
+    .btn {
+        padding: 6px 10px;
+        font-size: 0.8rem;
+    }
+
+    /* Canvas Responsive */
+    .viewport {
+        flex: 0 0 auto; /* Don't grow, size to content/constraints */
+        width: 100%;
+        height: auto; /* Let Javascript/AspectRatio define height */
+        padding: 10px;
+        background-color: #1a1a1a;
+    }
+    
+    .canvas-wrapper {
+        width: 100%;
+        height: auto;
+        max-height: 50vh; /* Limit height so controls are visible */
+        aspect-ratio: 4/3; /* Maintain approximate aspect ratio of 800x600 */
+    }
+
+    canvas {
+        touch-action: none;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain;
+    }
+
+    /* Sidebar as Bottom Panel */
+    .sidebar-right {
+        width: 100%;
+        height: auto;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        box-shadow: none;
+        overflow: visible; /* Let it flow */
+    }
+
+    .sidebar-content {
+        padding: 15px;
+        flex-direction: row; /* Try to put panels side-by-side if fits? */
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .panel-section {
+        flex: 1 1 150px; /* Grow to fill, min width 150px */
+    }
+
+    /* Properties Overlays */
+    #point-properties {
+        position: fixed;
+        bottom: 220px; /* Above timeline */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 300px;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+
+    /* Timeline Adjustments */
+    .timeline-panel {
+        height: 160px; /* Slightly smaller */
+    }
+
+    .frame-card {
+        width: 60px;
+        height: 80px;
+    }
+    
+    .add-frame-div {
+        width: 60px;
+        height: 80px;
+    }
+}

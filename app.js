@@ -232,6 +232,11 @@ function setupEventListeners() {
     canvas.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('mouseleave', handleMouseUp);
 
+    canvas.addEventListener('touchstart', handleMouseDown, { passive: false });
+    canvas.addEventListener('touchmove', handleMouseMove, { passive: false });
+    canvas.addEventListener('touchend', handleMouseUp);
+    canvas.addEventListener('touchcancel', handleMouseUp);
+
     // Controls
     btnPlay.addEventListener('click', startPlayback);
     btnStop.addEventListener('click', stopPlayback);
@@ -584,22 +589,45 @@ const IK_CHAINS = {
 };
 
 // --- Canvas Logic ---
-function getMousePos(evt) {
+// --- Canvas Logic ---
+function getPointerPos(evt) {
     const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+    } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+    }
+
+    // Scale mapping: CSS Size -> Canvas Internal Resolution (800x600)
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
     };
 }
 
+// Alias for compatibility
+const getMousePos = getPointerPos;
+
 function handleMouseDown(e) {
+    // Prevent default only for touch to allow mouse users to interact normally (though standard mouse doesn't scroll often on drag)
+    // For touch, we'll handle preventDefault in the specific listener
+    if (e.type === 'touchstart') {
+        // e.preventDefault(); // Moved to options for passive listener issue prevention if needed, but usually handled in logic
+    }
+
     if (State.isPlaying) return;
     
     // Save state before potential interaction
-    // We do this eagerly. If nothing changes, it's a minor redundancy (selection change is still a change).
     History.saveState();
 
-    const pos = getMousePos(e);
+    const pos = getPointerPos(e);
     
     // Check Background Edit Mode
     const chkEditBg = document.getElementById('chk-edit-bg');
@@ -665,8 +693,11 @@ function deselectPoint() {
 }
 
 function handleMouseMove(e) {
+    // Prevent default on touch to stop scrolling
+    if (e.type === 'touchmove') e.preventDefault();
+
     if (State.isPlaying) return;
-    const pos = getMousePos(e);
+    const pos = getPointerPos(e);
 
     // Background Dragging
     if (State.isDraggingBg && State.background) {
@@ -701,7 +732,9 @@ function handleMouseMove(e) {
         
         draw();
     } else {
-        // Hover Cursor logic
+        // Hover Cursor logic (Only for mouse really)
+        if (e.type.startsWith('touch')) return;
+
         const chkEditBg = document.getElementById('chk-edit-bg');
         if (State.background && chkEditBg && chkEditBg.checked) {
              canvas.style.cursor = 'move';
@@ -730,7 +763,7 @@ function handleMouseMove(e) {
     }
 }
 
-function handleMouseUp() {
+function handleMouseUp(e) {
     State.isDraggingBg = false; 
     
     if (State.draggedPointIndex !== null) {
