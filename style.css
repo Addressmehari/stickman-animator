@@ -415,7 +415,7 @@ canvas {
 .canvas-overlay-minimal {
     position: absolute;
     top: 15px;
-    left: 15px;
+    right: 15px; /* Moved to right */
     pointer-events: none;
 }
 
@@ -663,8 +663,9 @@ textarea { width: 100%; height: 150px; background: #111; border: 1px solid #333;
 /* --- Context Bar (Floating Selection Panel) --- */
 .context-bar {
     position: absolute;
-    top: 15px;
-    right: 15px;
+    top: 100px;
+    left: 15px; /* Moved to left for PC */
+    right: auto;
     background: rgba(30, 30, 30, 0.95);
     border: 1px solid var(--accent);
     padding: 10px 15px;
