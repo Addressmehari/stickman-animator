@@ -56,6 +56,36 @@ body {
 .controls {
     display: flex;
     gap: 10px;
+    align-items: center; /* Ensure vertical alignment */
+}
+
+.separator-vertical {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border);
+    margin: 0 4px;
+}
+
+.select-input {
+    background-color: #222; /* Darker than panel */
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+    /* Custom Arrow maybe? For now standard is okay or we can try minimal */
+}
+
+.select-input:hover {
+    border-color: #555;
+    background-color: #2a2a2a;
+}
+
+.select-input:focus {
+    border-color: var(--primary);
 }
 
 .btn {
@@ -70,14 +100,48 @@ body {
     gap: 6px;
 }
 
-.btn-primary { background-color: var(--primary); color: white; }
-.btn-primary:hover { background-color: #1976d2; }
+.btn-primary { 
+    background: linear-gradient(135deg, var(--primary), #1976d2); 
+    color: white; 
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+.btn-primary:hover { 
+    background: linear-gradient(135deg, #42a5f5, #1e88e5); 
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(33, 150, 243, 0.4);
+}
 
-.btn-secondary { background-color: #f44336; color: white; }
-.btn-secondary:hover { background-color: #d32f2f; }
+.btn-secondary { 
+    background: linear-gradient(135deg, #f44336, #d32f2f); 
+    color: white; 
+    box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+.btn-secondary:hover { 
+    background: linear-gradient(135deg, #ef5350, #c62828);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
+}
 
-.btn-outline { background-color: transparent; border: 1px solid #555; color: var(--text-main); }
-.btn-outline:hover { background-color: rgba(255,255,255,0.1); }
+/* Pulse animation for Stop button (Active State implicitly) */
+.btn-secondary:not(.hidden) {
+    animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(244, 67, 54, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+}
+
+.btn-outline { 
+    background-color: transparent; 
+    border: 1px solid #555; 
+    color: var(--text-main); 
+}
+.btn-outline:hover { 
+    background-color: rgba(255,255,255,0.05); 
+    border-color: #777;
+}
 
 /* --- Workspace --- */
 /* --- Workspace (Layout) --- */
