@@ -248,6 +248,7 @@ const chkOnionSkin = document.getElementById('chk-onion-skin');
 const panelProperties = document.getElementById('point-properties');
 const selectEasing = document.getElementById('point-easing');
 const selectPlaybackMode = document.getElementById('select-playback-mode');
+const chkPassthrough = document.getElementById('point-passthrough');
 
 // --- Initialization ---
 function init() {
@@ -292,10 +293,19 @@ function setupEventListeners() {
             History.saveState();
             const point = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
             point.easing = e.target.value;
-            // No need to redraw immediately if static, checking selection highlight?
-            // Actually, we should save state.
         }
     });
+
+    if (chkPassthrough) {
+        chkPassthrough.addEventListener('change', (e) => {
+             if (State.selectedPointIndex !== null && State.frames[State.currentFrameIndex]) {
+                History.saveState();
+                const point = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+                point.isIgnored = e.target.checked;
+                draw();
+            }
+        });
+    }
 
     // Video/GIF Export (Placeholder for future)
     btnExport.addEventListener('click', showExportModal);
@@ -518,6 +528,23 @@ function setupEventListeners() {
                     History.undo();
                 }
                 break;
+            case 'p':
+            case 'P':
+                // Hotkey for Passthrough
+                if (State.selectedPointIndex !== null && !State.isPlaying) {
+                     History.saveState();
+                     const chkPassthrough = document.getElementById('point-passthrough');
+                     const point = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+                     point.isIgnored = !point.isIgnored;
+                     
+                     // Sync UI if visible
+                     if (chkPassthrough) {
+                        chkPassthrough.checked = point.isIgnored;
+                        // Optional: Add visual flare or highlight?
+                     }
+                     draw();
+                }
+                break;
         }
     });
 }
@@ -637,6 +664,9 @@ function selectPoint(index) {
     // Update Properties Panel values
     const point = State.frames[State.currentFrameIndex].points[index];
     selectEasing.value = point.easing || 'easeInOutCubic';
+    if (chkPassthrough) {
+        chkPassthrough.checked = !!point.isIgnored;
+    }
     draw();
 }
 
@@ -948,7 +978,13 @@ function drawStickman(context, points, color, opacity, scale = 1, offsetX = 0, o
     if (scale === 1) { 
         points.forEach(p => {
             context.beginPath();
-            context.fillStyle = (State.selectedPointIndex === p.id && !State.isPlaying) ? '#ff5252' : CONFIG.junctionColor;
+            
+            // Visual feedback for interaction
+            const isSelected = State.selectedPointIndex === p.id && !State.isPlaying;
+            
+            // Determine Color
+            if (isSelected) context.fillStyle = '#ff5252'; 
+            else context.fillStyle = CONFIG.junctionColor;
             
             let px = p.x;
             let py = p.y;
@@ -959,7 +995,19 @@ function drawStickman(context, points, color, opacity, scale = 1, offsetX = 0, o
             }
 
             context.arc(px, py, CONFIG.pointRadius, 0, Math.PI * 2);
-            context.fill();
+            
+            // Passthrough Visualization (Hollow if ignored)
+            // Note: In playback 'points' is the interpolated result so it doesn't have 'isIgnored'
+            // We check this mainly for Edit mode where we pass raw frame points.
+            if (p.isIgnored && !State.isPlaying) {
+                 context.lineWidth = 2;
+                 context.strokeStyle = context.fillStyle;
+                 context.fillStyle = 'rgba(0,0,0,0.5)'; // Transparent center
+                 context.fill();
+                 context.stroke();
+            } else {
+                 context.fill();
+            }
         });
     }
 
@@ -1062,7 +1110,14 @@ function updateUIControls() {
 function selectFrame(index) {
     if (State.isPlaying) return;
     State.currentFrameIndex = index;
-    deselectPoint(); // Reset selection when changing frames
+    
+    // Persist selection if strictly valid, otherwise deselect
+    if (State.selectedPointIndex !== null) {
+        selectPoint(State.selectedPointIndex); // Refresh UI for new frame data
+    } else {
+        deselectPoint();
+    }
+    
     frameNumDisplay.textContent = index + 1;
     renderTimeline(); // Refresh to update active class
     draw();
@@ -1171,23 +1226,103 @@ function playbackLoop(timestamp) {
     requestAnimationFrame(playbackLoop);
 }
 
-// Refactored to allow sampling at any time (needed for Export)
+// Refactored to allow Independent Joint Interpolation (Tweens/Passthrough)
 function getPoseAtTime(globalTime) {
-    let timeAccumulator = 0;
+    const numPoints = 12; // Standard Rig Size
+    const resultPoints = new Array(numPoints);
     
-    for (let i = 0; i < State.frames.length - 1; i++) {
-        const frameDuration = State.frames[i].duration;
-        
-        if (globalTime >= timeAccumulator && globalTime < timeAccumulator + frameDuration) {
-            const timeInFrame = globalTime - timeAccumulator;
-            // Pass linear T (0 to 1)
-            const t = timeInFrame / frameDuration; 
-            
-            return interpolatePoints(State.frames[i].points, State.frames[i+1].points, t);
-        }
-        timeAccumulator += frameDuration;
+    // 1. Pre-calculate start times for all frames
+    // (Optimization: Could be cached in State, but fast enough for <100 frames)
+    const frameStartTimes = [];
+    let t = 0;
+    for (let i = 0; i < State.frames.length; i++) {
+        frameStartTimes.push(t);
+        t += State.frames[i].duration;
     }
-    return State.frames[State.frames.length - 1].points;
+    const totalDuration = t;
+
+    // 2. Resolve every point independently
+    for (let pIdx = 0; pIdx < numPoints; pIdx++) {
+        
+        // Find Prev Key (Last non-ignored frame <= globalTime)
+        let prevFrame = null;
+        let prevTime = 0;
+        
+        // Find Next Key (First non-ignored frame > globalTime)
+        let nextFrame = null;
+        let nextTime = totalDuration;
+
+        // Search Backwards for Prev
+        // We find the 'current frame index' interval first to start search
+        let tentativeIdx = 0;
+        for(let i=0; i<frameStartTimes.length; i++) {
+            if (globalTime >= frameStartTimes[i]) tentativeIdx = i;
+        }
+
+        // Scan back from tentative
+        for (let i = tentativeIdx; i >= 0; i--) {
+            if (!State.frames[i].points[pIdx].isIgnored) {
+                prevFrame = State.frames[i];
+                prevTime = frameStartTimes[i];
+                break;
+            }
+        }
+        // If not found (e.g. Frame 0 is ignored?), fallback to Frame 0
+        if (!prevFrame) {
+            prevFrame = State.frames[0];
+            prevTime = 0;
+        }
+
+        // Scan forward for Next
+        for (let i = tentativeIdx + 1; i < State.frames.length; i++) {
+             if (!State.frames[i].points[pIdx].isIgnored) {
+                nextFrame = State.frames[i];
+                nextTime = frameStartTimes[i];
+                break;
+            }
+        }
+        
+        // Handle Edge Case: No future keyframe? 
+        // If looping, we might look at Frame 0? 
+        // For simplicity in this logic, we hold the last value.
+        if (!nextFrame) {
+             // If we are past the last actual keyframe for this point
+             resultPoints[pIdx] = { ...prevFrame.points[pIdx] }; // Hold
+             continue;
+        }
+
+        // 3. Interpolate
+        const duration = nextTime - prevTime;
+        let localT = 0;
+        if (duration > 0.0001) {
+            localT = (globalTime - prevTime) / duration;
+        }
+        localT = Math.max(0, Math.min(1, localT));
+        
+        // Use Easing from the Target Keyframe (nextFrame)
+        const pointStart = prevFrame.points[pIdx];
+        const pointEnd = nextFrame.points[pIdx];
+        
+        // Basic Linear Interpolation Helper
+        const type = pointEnd.easing || 'easeInOutCubic';
+        const fn = EasingFunctions[type] || EasingFunctions[linear];
+        const easedT = fn(localT);
+
+        resultPoints[pIdx] = {
+            id: pIdx,
+            x: pointStart.x + (pointEnd.x - pointStart.x) * easedT,
+            y: pointStart.y + (pointEnd.y - pointStart.y) * easedT
+        };
+    }
+    
+    // Note: We are returning raw interpolated points. 
+    // FK (Forward Kinematics) parenting logic in `interpolatePoints` 
+    // was nice for rotation-arc preservation, but doing purely linear point-to-point 
+    // is often more predictable for "Passthrough" behavior tweening.
+    // If we wanted true FK arc interpolation with Passthrough, it gets very complex mathematically.
+    // Sticking to Cartesian Linear Interpolation for robustness here.
+    
+    return resultPoints;
 }
 
 function getCurrentInterpolatedPose() {
