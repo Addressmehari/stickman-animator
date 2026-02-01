@@ -1305,12 +1305,40 @@ function showExportModal() {
         totalDuration += State.frames[i].duration;
     }
     
+    // Determine Export Duration based on Mode
+    let exportDuration = totalDuration;
+    if (State.playbackMode === 'pingpong') {
+        exportDuration = totalDuration * 2;
+    }
+    
     // Generate In-Between Frames
     // Step through time at 1/FPS increments
     let t = 0;
     // We add a tiny epsilon to ensure we catch the exact end point if float math aligns
-    while (t <= totalDuration + 0.001) {
-        const pose = getPoseAtTime(t);
+    while (t <= exportDuration + 0.001) {
+        
+        // Calculate Effective Time based on Playback Mode
+        let effectiveTime = t;
+        
+        if (State.playbackMode === 'pingpong') {
+            const cycleHalf = totalDuration;
+            // T goes from 0 -> 2*Total
+            // If T <= Total: Normal
+            // If T > Total: Total - (T - Total) = 2*Total - T
+            if (t <= cycleHalf) {
+                effectiveTime = t;
+            } else {
+                effectiveTime = (cycleHalf * 2) - t;
+            }
+        } else if (State.playbackMode === 'reverse') {
+            effectiveTime = totalDuration - t;
+        }
+        
+        // Clamp safely to track range
+        effectiveTime = Math.max(0, Math.min(totalDuration, effectiveTime));
+
+        const pose = getPoseAtTime(effectiveTime);
+        
         bakedFrames.push({
             time: parseFloat(t.toFixed(3)),
             points: pose.map(p => ({
@@ -1326,7 +1354,8 @@ function showExportModal() {
         meta: {
             name: "stickman_project",
             fps: FPS,
-            totalDuration: parseFloat(totalDuration.toFixed(2)),
+            mode: State.playbackMode,
+            totalDuration: parseFloat(exportDuration.toFixed(2)),
             totalFrames: bakedFrames.length
         },
         // Original Keyframes (for editing)
