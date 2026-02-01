@@ -334,11 +334,19 @@ function setupEventListeners() {
 
     // Download JSON
     const btnDownload = document.getElementById('btn-download');
+    const inputExportName = document.getElementById('export-name');
+
     btnDownload.addEventListener('click', () => {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(exportOutput.value);
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", "animation.json");
+        
+        // Determine filename
+        let fileName = inputExportName.value.trim();
+        if (!fileName) fileName = "animation";
+        if (!fileName.toLowerCase().endsWith('.json')) fileName += ".json";
+        
+        downloadAnchorNode.setAttribute("download", fileName);
         document.body.appendChild(downloadAnchorNode); // required for firefox
         downloadAnchorNode.click();
         downloadAnchorNode.remove();

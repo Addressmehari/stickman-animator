@@ -230,7 +230,11 @@
           <button class="close-modal">&times;</button>
         </div>
         <div class="modal-body">
-          <p>Your animation JSON structure:</p>
+          <div class="control-group" style="margin-bottom: 15px;">
+             <label for="export-name" style="margin-bottom: 5px;">File Name</label>
+             <input type="text" id="export-name" placeholder="animation" class="select-input" style="width: 100%; color: #fff; cursor: text;">
+          </div>
+          <p style="margin-bottom: 5px;">JSON Preview:</p>
           <textarea id="export-output" readonly></textarea>
           <button id="btn-download" class="btn btn-primary full-width">
             Download JSON
