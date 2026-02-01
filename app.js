@@ -56,21 +56,25 @@ const PARENT_MAP = {
     10: 7, 11: 10
 };
 
-// Initial T-Pose Coordinates (relative to 800x600 canvas center)
-function getInitialPose() {
+// Initial Pose Generator (Dynamic Center)
+function getInitialPose(cw = 800, ch = 600) {
+    const cx = cw / 2;
+    const cy = ch * 0.3; // Start around 30% down
+    
+    // Relative offsets from Head/Center
     return [
-        { id: 0, x: 400, y: 180 }, // Head
-        { id: 1, x: 400, y: 230 }, // Neck
-        { id: 2, x: 400, y: 280 }, // SpineMid
-        { id: 3, x: 350, y: 230 }, // LElbow
-        { id: 4, x: 300, y: 230 }, // LHand
-        { id: 5, x: 450, y: 230 }, // RElbow
-        { id: 6, x: 500, y: 230 }, // RHand
-        { id: 7, x: 400, y: 330 }, // Pelvis
-        { id: 8, x: 370, y: 400 }, // LKnee
-        { id: 9, x: 370, y: 470 }, // LFoot
-        { id: 10, x: 430, y: 400 }, // RKnee
-        { id: 11, x: 430, y: 470 }  // RFoot
+        { id: 0, x: cx, y: cy },        // Head
+        { id: 1, x: cx, y: cy + 50 },   // Neck
+        { id: 2, x: cx, y: cy + 100 },  // SpineMid
+        { id: 3, x: cx - 40, y: cy + 50 },  // LElbow
+        { id: 4, x: cx - 90, y: cy + 50 },  // LHand
+        { id: 5, x: cx + 40, y: cy + 50 },  // RElbow
+        { id: 6, x: cx + 90, y: cy + 50 },  // RHand
+        { id: 7, x: cx, y: cy + 150 },  // Pelvis (Root)
+        { id: 8, x: cx - 30, y: cy + 220 }, // LKnee
+        { id: 9, x: cx - 30, y: cy + 290 }, // LFoot
+        { id: 10, x: cx + 30, y: cy + 220 }, // RKnee
+        { id: 11, x: cx + 30, y: cy + 290 }  // RFoot
     ];
 }
 
@@ -218,6 +222,22 @@ const chkPassthrough = document.getElementById('point-passthrough');
 
 // --- Initialization ---
 function init() {
+    // Mobile Resolution Adjustment
+    if (window.innerWidth < 768) {
+        canvas.width = 600;
+        canvas.height = 800; // Portrait Mode
+        
+        // Reset Initial State for new resolution
+        State.frames = [
+            { id: 1, duration: 0.5, points: getInitialPose(600, 800) },
+            { id: 2, duration: 0.5, points: getInitialPose(600, 800) }
+        ];
+    } else {
+         // Desktop default
+         canvas.width = 800;
+         canvas.height = 600;
+    }
+
     renderTimeline();
     updateUIControls(); // Initial check
     draw();
