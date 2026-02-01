@@ -158,39 +158,59 @@ const State = {
     playbackMode: 'loop' // 'loop', 'pingpong', 'once'
 };
 
-// --- History System (Undo) ---
+// --- History System (Undo/Redo) ---
 const History = {
     stack: [],
+    redoStack: [],
     maxSize: 50,
     
-    saveState: function() {
-        // Deep Clone Frames
+    // Helper to create a deep copy of current state
+    _createSnapshot: function() {
         const framesCopy = JSON.parse(JSON.stringify(State.frames));
         
         // Clone Background Props
         let bgCopy = null;
         if (State.background) {
             bgCopy = { ...State.background };
-            // We keep the media reference (DOM element) for simplicity 
-            // so we don't have to reload images on undo. 
-            // This assumes we don't destroy `media` externally.
         }
 
-        const snapshot = {
+        return {
             frames: framesCopy,
             currentFrameIndex: State.currentFrameIndex,
             background: bgCopy,
             selectedPointIndex: State.selectedPointIndex
         };
+    },
+
+    saveState: function() {
+        const snapshot = this._createSnapshot();
 
         this.stack.push(snapshot);
         if (this.stack.length > this.maxSize) this.stack.shift();
+        
+        // Clear redo stack on new action path
+        this.redoStack = [];
     },
 
     undo: function() {
         if (this.stack.length === 0) return;
         
+        // Save 'Future' state to Redo Stack before going back
+        const currentSnapshot = this._createSnapshot();
+        this.redoStack.push(currentSnapshot);
+        
         const snapshot = this.stack.pop();
+        this.restore(snapshot);
+    },
+
+    redo: function() {
+        if (this.redoStack.length === 0) return;
+
+        // Save 'Past' state to Undo Stack before going forward
+        const currentSnapshot = this._createSnapshot();
+        this.stack.push(currentSnapshot);
+
+        const snapshot = this.redoStack.pop();
         this.restore(snapshot);
     },
 
@@ -203,7 +223,6 @@ const History = {
         // Restore Background
         if (snapshot.background) {
             State.background = snapshot.background;
-             // Ensure media is attached (it was a shallow copy of the object, so media ref should be there)
         } else {
             State.background = null;
         }
@@ -213,16 +232,16 @@ const History = {
             panelProperties.classList.remove('hidden');
             const p = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
             selectEasing.value = p.easing || 'easeInOutCubic';
+            
+            const chkPassthrough = document.getElementById('point-passthrough');
+            if (chkPassthrough) chkPassthrough.checked = !!p.isIgnored;
+            
         } else {
             panelProperties.classList.add('hidden');
         }
 
         renderTimeline();
-        // Force refresh controls in case frame count changed
         updateUIControls();
-        
-        // Re-calculate derived state?
-        // selectFrame sets up UI, but we manually set index.
         frameNumDisplay.textContent = State.currentFrameIndex + 1;
         draw();
     }
@@ -525,9 +544,21 @@ function setupEventListeners() {
             case 'Z':
                 if (e.ctrlKey || e.metaKey) {
                     e.preventDefault();
-                    History.undo();
+                    if (e.shiftKey) {
+                        History.redo(); // Ctrl+Shift+Z
+                    } else {
+                        History.undo(); // Ctrl+Z
+                    }
                 }
                 break;
+            case 'y':
+            case 'Y':
+                 // Ctrl+Y (Redo)
+                 if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    History.redo();
+                 }
+                 break;
             case 'p':
             case 'P':
                 // Hotkey for Passthrough
