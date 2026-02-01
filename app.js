@@ -545,6 +545,16 @@ function setupEventListeners() {
                      draw();
                 }
                 break;
+                break;
+        }
+    });
+
+    // Prevent accidental refresh/close
+    window.addEventListener('beforeunload', (e) => {
+        // If there is history (actions taken) or more than 1 frame, ask for confirmation
+        if (History.stack.length > 0 || State.frames.length > 1) {
+            e.preventDefault(); 
+            e.returnValue = ''; // Required for Chrome/Firefox/Safari to show prompt
         }
     });
 }
