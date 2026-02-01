@@ -157,6 +157,76 @@ const State = {
     playLastScuffTime: 0 // Track sound triggers
 };
 
+// --- History System (Undo) ---
+const History = {
+    stack: [],
+    maxSize: 50,
+    
+    saveState: function() {
+        // Deep Clone Frames
+        const framesCopy = JSON.parse(JSON.stringify(State.frames));
+        
+        // Clone Background Props
+        let bgCopy = null;
+        if (State.background) {
+            bgCopy = { ...State.background };
+            // We keep the media reference (DOM element) for simplicity 
+            // so we don't have to reload images on undo. 
+            // This assumes we don't destroy `media` externally.
+        }
+
+        const snapshot = {
+            frames: framesCopy,
+            currentFrameIndex: State.currentFrameIndex,
+            background: bgCopy,
+            selectedPointIndex: State.selectedPointIndex
+        };
+
+        this.stack.push(snapshot);
+        if (this.stack.length > this.maxSize) this.stack.shift();
+    },
+
+    undo: function() {
+        if (this.stack.length === 0) return;
+        
+        const snapshot = this.stack.pop();
+        this.restore(snapshot);
+    },
+
+    restore: function(snapshot) {
+        // Restore Data
+        State.frames = snapshot.frames; // These are deep copies, so safe
+        State.currentFrameIndex = snapshot.currentFrameIndex;
+        State.selectedPointIndex = snapshot.selectedPointIndex;
+        
+        // Restore Background
+        if (snapshot.background) {
+            State.background = snapshot.background;
+             // Ensure media is attached (it was a shallow copy of the object, so media ref should be there)
+        } else {
+            State.background = null;
+        }
+
+        // Update UI
+        if (State.selectedPointIndex !== null) {
+            panelProperties.classList.remove('hidden');
+            const p = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
+            selectEasing.value = p.easing || 'easeInOutCubic';
+        } else {
+            panelProperties.classList.add('hidden');
+        }
+
+        renderTimeline();
+        // Force refresh controls in case frame count changed
+        updateUIControls();
+        
+        // Re-calculate derived state?
+        // selectFrame sets up UI, but we manually set index.
+        frameNumDisplay.textContent = State.currentFrameIndex + 1;
+        draw();
+    }
+};
+
 // --- DOM Elements ---
 const canvas = document.getElementById('anim-canvas');
 const ctx = canvas.getContext('2d');
@@ -211,6 +281,7 @@ function setupEventListeners() {
     // Property Panel Inputs
     selectEasing.addEventListener('change', (e) => {
         if (State.selectedPointIndex !== null && State.frames[State.currentFrameIndex]) {
+            History.saveState();
             const point = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
             point.easing = e.target.value;
             // No need to redraw immediately if static, checking selection highlight?
@@ -282,6 +353,8 @@ function setupEventListeners() {
     const rngBgOpacity = document.getElementById('rng-bg-opacity');
     const lblBgOpacity = document.getElementById('bg-opacity-val');
     const chkEditBg = document.getElementById('chk-edit-bg');
+    const rngBgScale = document.getElementById('rng-bg-scale');
+    const lblBgScale = document.getElementById('bg-scale-val');
 
     if (btnUploadBg && fileBg) {
         btnUploadBg.addEventListener('click', () => fileBg.click());
@@ -306,6 +379,7 @@ function setupEventListeners() {
                 media.onload = () => draw();
             }
             
+            History.saveState();
             State.background = {
                 media: media,
                 type: type,
@@ -331,10 +405,8 @@ function setupEventListeners() {
     }
     
     // Scale Slider Listener
-    const rngBgScale = document.getElementById('rng-bg-scale');
-    const lblBgScale = document.getElementById('bg-scale-val');
-    
     if (rngBgScale) {
+        rngBgScale.addEventListener('mousedown', () => History.saveState()); // Save before slide
         rngBgScale.addEventListener('input', (e) => {
             if (State.background) {
                 State.background.scale = parseFloat(e.target.value);
@@ -345,6 +417,7 @@ function setupEventListeners() {
     }
 
     if (rngBgOpacity) {
+        rngBgOpacity.addEventListener('mousedown', () => History.saveState()); // Save before slide
         rngBgOpacity.addEventListener('input', (e) => {
             if (State.background) {
                 State.background.opacity = parseFloat(e.target.value);
@@ -357,8 +430,9 @@ function setupEventListeners() {
     if (btnClearBg) {
         btnClearBg.addEventListener('click', () => {
              // ... same as before
+            History.saveState();
             if (State.background && State.background.url) {
-                URL.revokeObjectURL(State.background.url);
+                // URL.revokeObjectURL(State.background.url); // Commented out to allow Undo to restore image
             }
             State.background = null;
             divBgSettings.classList.add('hidden');
@@ -372,6 +446,11 @@ function setupEventListeners() {
     // Wheel Event for Scaling Background
     canvas.addEventListener('wheel', (e) => {
         if (State.background && chkEditBg && chkEditBg.checked) {
+             // Throttling or saving on first move would be ideal, 
+             // but for now let's just not SPAM history. 
+             // Maybe we only save if > 1s since last save? 
+             // For simplicity in this iteration, we skip auto-save on wheel-zoom 
+             // to avoid popping the stack 100 times. User can use Slider for undoable zoom.
             e.preventDefault();
             const zoomSpeed = 0.1;
             const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
@@ -415,6 +494,13 @@ function setupEventListeners() {
             case 'Delete':
             case 'Backspace':
                 deleteFrame(State.currentFrameIndex);
+                break;
+            case 'z':
+            case 'Z':
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    History.undo();
+                }
                 break;
         }
     });
@@ -477,6 +563,11 @@ function getMousePos(evt) {
 
 function handleMouseDown(e) {
     if (State.isPlaying) return;
+    
+    // Save state before potential interaction
+    // We do this eagerly. If nothing changes, it's a minor redundancy (selection change is still a change).
+    History.saveState();
+
     const pos = getMousePos(e);
     
     // Check Background Edit Mode
@@ -962,6 +1053,7 @@ function selectFrame(index) {
 }
 
 function addNewFrame() {
+    History.saveState();
     const currentPoints = State.frames[State.currentFrameIndex].points;
     const newPoints = JSON.parse(JSON.stringify(currentPoints));
     
@@ -981,6 +1073,7 @@ function addNewFrame() {
 function deleteFrame(index) {
     if (State.frames.length <= 1) return; // Prevention
     
+    History.saveState();
     State.frames.splice(index, 1);
     if (State.currentFrameIndex >= State.frames.length) {
         State.currentFrameIndex = State.frames.length - 1;
