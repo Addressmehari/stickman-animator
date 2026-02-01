@@ -538,7 +538,10 @@ function setupEventListeners() {
                      point.isIgnored = !point.isIgnored;
                      
                      // Sync UI if visible
-                     if (chkPassthrough) chkPassthrough.checked = point.isIgnored;
+                     if (chkPassthrough) {
+                        chkPassthrough.checked = point.isIgnored;
+                        // Optional: Add visual flare or highlight?
+                     }
                      draw();
                 }
                 break;
