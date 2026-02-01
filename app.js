@@ -154,7 +154,8 @@ const State = {
     lastFrameTime: 0,
     playStartTime: 0,
     playCurrentGlobalTime: 0,
-    playLastScuffTime: 0 // Track sound triggers
+    playLastScuffTime: 0, // Track sound triggers
+    playbackMode: 'loop' // 'loop', 'pingpong', 'once'
 };
 
 // --- History System (Undo) ---
@@ -246,6 +247,7 @@ const chkOnionSkin = document.getElementById('chk-onion-skin');
 // New Property Panel Elements
 const panelProperties = document.getElementById('point-properties');
 const selectEasing = document.getElementById('point-easing');
+const selectPlaybackMode = document.getElementById('select-playback-mode');
 
 // --- Initialization ---
 function init() {
@@ -277,6 +279,12 @@ function setupEventListeners() {
         State.isOnionSkinEnabled = e.target.checked;
         if (!State.isPlaying) draw();
     });
+
+    if (selectPlaybackMode) {
+        selectPlaybackMode.addEventListener('change', (e) => {
+            State.playbackMode = e.target.value;
+        });
+    }
 
     // Property Panel Inputs
     selectEasing.addEventListener('change', (e) => {
@@ -1111,14 +1119,45 @@ function playbackLoop(timestamp) {
         totalDuration += State.frames[i].duration;
     }
     
+    // Prevent div by zero
+    if (totalDuration <= 0) totalDuration = 0.1;
+
     let elapsed = (timestamp - State.playStartTime) / 1000;
+    let effectiveTime = 0;
+
+    if (State.playbackMode === 'loop') {
+        if (elapsed > totalDuration) {
+            // Modulo for seamless looping without drifting start time extensively
+            // or just simple reset if we don't care about absolute sync
+            elapsed = elapsed % totalDuration;
+            // Note: Mutating 'elapsed' here strictly for local calculation, 
+            // but for next frame requestAnimationFrame will pass new timestamp.
+            // A better way to loop 'time' without resetting a base timestamp constantly
+            // is using modulo on the diff.
+        }
+        effectiveTime = elapsed % totalDuration;
     
-    if (elapsed > totalDuration) {
-        State.playStartTime = timestamp; // Loop
-        elapsed = 0;
+    } else if (State.playbackMode === 'pingpong') {
+        const cycle = totalDuration * 2;
+        let t = elapsed % cycle;
+        if (t <= totalDuration) {
+            effectiveTime = t;
+        } else {
+            effectiveTime = totalDuration - (t - totalDuration);
+        }
+    
+    } else if (State.playbackMode === 'once') {
+        if (elapsed >= totalDuration) {
+            effectiveTime = totalDuration;
+            State.playCurrentGlobalTime = effectiveTime; // Set final pose
+            draw();
+            stopPlayback();
+            return;
+        }
+        effectiveTime = elapsed;
     }
 
-    State.playCurrentGlobalTime = elapsed;
+    State.playCurrentGlobalTime = effectiveTime;
     draw();
     requestAnimationFrame(playbackLoop);
 }

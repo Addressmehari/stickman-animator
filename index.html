@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Stickman Animator Pro</title>
-    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,16 +24,35 @@
           <button id="btn-play" class="btn btn-primary" title="Play Animation">
             <span class="play-icon">▶</span> Play
           </button>
-          <button id="btn-stop"
+          <button
+            id="btn-stop"
             class="btn btn-secondary hidden"
             title="Stop Animation"
           >
             <span class="stop-icon">■</span> Stop
           </button>
+
+          <div class="separator-vertical"></div>
+
+          <select
+            id="select-playback-mode"
+            class="select-input"
+            title="Playback Mode"
+          >
+            <option value="loop">🔁 Loop</option>
+            <option value="pingpong">🏓 Ping Pong</option>
+            <option value="once">➡️ One Shot</option>
+          </select>
+          <div class="separator-vertical"></div>
           <button id="btn-import" class="btn btn-outline" title="Import JSON">
             Import JSON
           </button>
-          <input type="file" id="file-import" accept=".json" style="display: none;" />
+          <input
+            type="file"
+            id="file-import"
+            accept=".json"
+            style="display: none"
+          />
           <button id="btn-export" class="btn btn-outline" title="Export JSON">
             Export JSON
           </button>
@@ -45,7 +64,9 @@
           <div class="canvas-wrapper">
             <canvas id="anim-canvas" width="800" height="600"></canvas>
             <div class="canvas-overlay-minimal">
-               <div class="frame-tag">Frame <span id="current-frame-num">1</span></div>
+              <div class="frame-tag">
+                Frame <span id="current-frame-num">1</span>
+              </div>
             </div>
           </div>
         </div>
@@ -56,7 +77,6 @@
           </div>
 
           <div class="sidebar-content">
-            
             <!-- Section: View Options -->
             <div class="panel-section">
               <div class="panel-title">View Options</div>
@@ -71,8 +91,11 @@
             <!-- Section: Tool Settings -->
             <div class="panel-section">
               <div class="panel-title">Tool Settings</div>
-               <div class="control-row">
-                <label class="toggle-control" title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees">
+              <div class="control-row">
+                <label
+                  class="toggle-control"
+                  title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees"
+                >
                   <input type="checkbox" id="chk-ik-mode" />
                   <span class="toggle-label">Enable IK Mode 🦾</span>
                 </label>
@@ -101,35 +124,70 @@
             <!-- Section: Rotoscoping -->
             <div class="panel-section">
               <div class="panel-title">Rotoscopy (Background)</div>
-              
+
               <div class="bg-actions">
-                  <button id="btn-upload-bg" class="btn-sidebar-action">
-                    Load Media
-                  </button>
-                  <input type="file" id="file-bg" accept="image/*,video/*" class="hidden">
-                  <button id="btn-clear-bg" class="btn-sidebar-icon hidden" title="Clear">✕</button>
+                <button id="btn-upload-bg" class="btn-sidebar-action">
+                  Load Media
+                </button>
+                <input
+                  type="file"
+                  id="file-bg"
+                  accept="image/*,video/*"
+                  class="hidden"
+                />
+                <button
+                  id="btn-clear-bg"
+                  class="btn-sidebar-icon hidden"
+                  title="Clear"
+                >
+                  ✕
+                </button>
               </div>
 
               <div id="bg-settings" class="bg-settings hidden">
-                   <div class="control-group">
-                     <label>Opacity <span id="bg-opacity-val" class="val-tag">50%</span></label>
-                     <input type="range" id="rng-bg-opacity" min="0" max="1" step="0.1" value="0.5" class="styled-range">
-                   </div>
-                   
-                   <div class="control-group">
-                      <label>Scale <span id="bg-scale-val" class="val-tag">1.0x</span></label>
-                      <input type="range" id="rng-bg-scale" min="0.1" max="5.0" step="0.1" value="1.0" class="styled-range">
-                   </div>
+                <div class="control-group">
+                  <label
+                    >Opacity
+                    <span id="bg-opacity-val" class="val-tag">50%</span></label
+                  >
+                  <input
+                    type="range"
+                    id="rng-bg-opacity"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value="0.5"
+                    class="styled-range"
+                  />
+                </div>
 
-                   <div class="control-row">
-                      <label class="toggle-control" title="Edit Background Position/Scale">
-                        <input type="checkbox" id="chk-edit-bg"> 
-                        <span class="toggle-label">Edit Mode</span>
-                      </label>
-                   </div>
+                <div class="control-group">
+                  <label
+                    >Scale
+                    <span id="bg-scale-val" class="val-tag">1.0x</span></label
+                  >
+                  <input
+                    type="range"
+                    id="rng-bg-scale"
+                    min="0.1"
+                    max="5.0"
+                    step="0.1"
+                    value="1.0"
+                    class="styled-range"
+                  />
+                </div>
+
+                <div class="control-row">
+                  <label
+                    class="toggle-control"
+                    title="Edit Background Position/Scale"
+                  >
+                    <input type="checkbox" id="chk-edit-bg" />
+                    <span class="toggle-label">Edit Mode</span>
+                  </label>
+                </div>
               </div>
             </div>
-
           </div>
         </aside>
       </main>
@@ -137,7 +195,11 @@
       <footer class="timeline-panel">
         <div class="timeline-header">
           <h3>Timeline</h3>
-          <button id="btn-delete-frame" class="btn btn-sm btn-secondary" style="margin-right: 10px; display: none;">
+          <button
+            id="btn-delete-frame"
+            class="btn btn-sm btn-secondary"
+            style="margin-right: 10px; display: none"
+          >
             🗑 Delete Frame
           </button>
           <button id="btn-add-frame" class="btn btn-sm btn-accent">
