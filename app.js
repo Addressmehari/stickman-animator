@@ -232,6 +232,11 @@ function setupEventListeners() {
     canvas.addEventListener('mouseup', handleMouseUp);
     canvas.addEventListener('mouseleave', handleMouseUp);
 
+    canvas.addEventListener('touchstart', handleMouseDown, { passive: false });
+    canvas.addEventListener('touchmove', handleMouseMove, { passive: false });
+    canvas.addEventListener('touchend', handleMouseUp);
+    canvas.addEventListener('touchcancel', handleMouseUp);
+
     // Controls
     btnPlay.addEventListener('click', startPlayback);
     btnStop.addEventListener('click', stopPlayback);
@@ -458,6 +463,37 @@ function setupEventListeners() {
         }
     });
 
+    // --- Mobile Sidebar Toggle ---
+    const btnSidebar = document.getElementById('btn-toggle-sidebar');
+    const sidebar = document.querySelector('.sidebar-right');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (btnSidebar && sidebar && overlay) {
+        const closeSidebar = () => {
+            sidebar.classList.remove('open');
+            overlay.classList.add('hidden');
+        };
+
+        const openSidebar = () => {
+             sidebar.classList.add('open');
+             overlay.classList.remove('hidden');
+        };
+
+        btnSidebar.addEventListener('click', () => {
+             if (sidebar.classList.contains('open')) closeSidebar();
+             else openSidebar();
+        });
+
+        overlay.addEventListener('click', closeSidebar);
+        
+        // Also close when interacting with canvas to clear view
+        if (canvas) {
+             canvas.addEventListener('touchstart', () => {
+                 if (sidebar.classList.contains('open')) closeSidebar();
+             }, { passive: false });
+        }
+    }
+
     // --- Keyboard Shortcuts ---
     window.addEventListener('keydown', (e) => {
         // Ignore if typing in an input
@@ -584,22 +620,45 @@ const IK_CHAINS = {
 };
 
 // --- Canvas Logic ---
-function getMousePos(evt) {
+// --- Canvas Logic ---
+function getPointerPos(evt) {
     const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+
+    if (evt.touches && evt.touches.length > 0) {
+        clientX = evt.touches[0].clientX;
+        clientY = evt.touches[0].clientY;
+    } else {
+        clientX = evt.clientX;
+        clientY = evt.clientY;
+    }
+
+    // Scale mapping: CSS Size -> Canvas Internal Resolution (800x600)
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     return {
-        x: evt.clientX - rect.left,
-        y: evt.clientY - rect.top
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
     };
 }
 
+// Alias for compatibility
+const getMousePos = getPointerPos;
+
 function handleMouseDown(e) {
+    // Prevent default only for touch to allow mouse users to interact normally (though standard mouse doesn't scroll often on drag)
+    // For touch, we'll handle preventDefault in the specific listener
+    if (e.type === 'touchstart') {
+        // e.preventDefault(); // Moved to options for passive listener issue prevention if needed, but usually handled in logic
+    }
+
     if (State.isPlaying) return;
     
     // Save state before potential interaction
-    // We do this eagerly. If nothing changes, it's a minor redundancy (selection change is still a change).
     History.saveState();
 
-    const pos = getMousePos(e);
+    const pos = getPointerPos(e);
     
     // Check Background Edit Mode
     const chkEditBg = document.getElementById('chk-edit-bg');
@@ -649,6 +708,10 @@ function selectPoint(index) {
     State.selectedPointIndex = index;
     panelProperties.classList.remove('hidden');
     
+    // Hide FAB on mobile to avoid clutter
+    const fab = document.getElementById('btn-toggle-sidebar');
+    if (fab) fab.classList.add('hidden');
+    
     // Update Properties Panel values
     const point = State.frames[State.currentFrameIndex].points[index];
     selectEasing.value = point.easing || 'easeInOutCubic';
@@ -661,12 +724,20 @@ function selectPoint(index) {
 function deselectPoint() {
     State.selectedPointIndex = null;
     panelProperties.classList.add('hidden');
+    
+    // Show FAB back
+    const fab = document.getElementById('btn-toggle-sidebar');
+    if (fab) fab.classList.remove('hidden');
+
     draw();
 }
 
 function handleMouseMove(e) {
+    // Prevent default on touch to stop scrolling
+    if (e.type === 'touchmove') e.preventDefault();
+
     if (State.isPlaying) return;
-    const pos = getMousePos(e);
+    const pos = getPointerPos(e);
 
     // Background Dragging
     if (State.isDraggingBg && State.background) {
@@ -701,7 +772,9 @@ function handleMouseMove(e) {
         
         draw();
     } else {
-        // Hover Cursor logic
+        // Hover Cursor logic (Only for mouse really)
+        if (e.type.startsWith('touch')) return;
+
         const chkEditBg = document.getElementById('chk-edit-bg');
         if (State.background && chkEditBg && chkEditBg.checked) {
              canvas.style.cursor = 'move';
@@ -730,7 +803,7 @@ function handleMouseMove(e) {
     }
 }
 
-function handleMouseUp() {
+function handleMouseUp(e) {
     State.isDraggingBg = false; 
     
     if (State.draggedPointIndex !== null) {
@@ -1147,6 +1220,9 @@ function startPlayback() {
     State.isPlaying = true;
     State.playStartTime = performance.now();
     State.playCurrentGlobalTime = 0;
+    
+    // Hide UI overlays
+    deselectPoint();
     
     btnPlay.classList.add('hidden');
     btnStop.classList.remove('hidden');

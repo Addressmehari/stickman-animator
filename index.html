@@ -2,10 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Stickman Animator Pro</title>
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="mobile.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -63,6 +64,35 @@
         <div class="viewport">
           <div class="canvas-wrapper">
             <canvas id="anim-canvas" width="800" height="600"></canvas>
+            
+            <!-- Context Bar (Point Properties) -->
+            <div id="point-properties" class="context-bar hidden">
+               <div class="context-header">Selected Joint</div>
+               <div class="context-content">
+                  <div class="control-group compact">
+                    <label for="point-easing">Transition</label>
+                    <div class="select-wrapper">
+                      <select id="point-easing">
+                        <option value="linear">Linear</option>
+                        <option value="easeInOutCubic">Smooth</option>
+                        <option value="easeInQuad">Ease In</option>
+                        <option value="easeOutQuad">Ease Out</option>
+                        <option value="easeOutBack">Overshoot</option>
+                        <option value="easeOutElastic">Elastic</option>
+                        <option value="easeOutBounce">Bounce</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="separator-vertical"></div>
+                  <div class="control-row">
+                     <label class="toggle-control small" title="Passthrough (Auto-Tween)">
+                        <input type="checkbox" id="point-passthrough">
+                        <span class="toggle-label">Passthrough</span>
+                     </label>
+                  </div>
+               </div>
+            </div>
+
             <div class="canvas-overlay-minimal">
               <div class="frame-tag">
                 Frame <span id="current-frame-num">1</span>
@@ -102,28 +132,17 @@
               </div>
             </div>
 
-            <!-- Section: Selected Point -->
-            <div id="point-properties" class="panel-section hidden">
-              <div class="panel-title highlight">Selected Joint</div>
-              <div class="control-group">
-                <label for="point-easing">Transition</label>
-                <div class="select-wrapper">
-                  <select id="point-easing">
-                    <option value="linear">Linear</option>
-                    <option value="easeInOutCubic">Smooth (Default)</option>
-                    <option value="easeInQuad">Ease In</option>
-                    <option value="easeOutQuad">Ease Out</option>
-                    <option value="easeOutBack">Overshoot</option>
-                    <option value="easeOutElastic">Elastic</option>
-                    <option value="easeOutBounce">Bounce</option>
-                  </select>
-                </div>
-              </div>
-              <div class="control-row" style="margin-top: 10px;">
-                 <label class="toggle-control" title="Passthrough: Ignore this point on this frame and auto-calculate position from neighbors.">
-                    <input type="checkbox" id="point-passthrough">
-                    <span class="toggle-label">Passthrough (Auto-Tween)</span>
-                 </label>
+            <!-- Section: Tool Settings -->
+            <div class="panel-section">
+              <div class="panel-title">Tool Settings</div>
+              <div class="control-row">
+                <label
+                  class="toggle-control"
+                  title="Inverse Kinematics: Dragging hands/feet automagically bends elbows/knees"
+                >
+                  <input type="checkbox" id="chk-ik-mode" />
+                  <span class="toggle-label">Enable IK Mode 🦾</span>
+                </label>
               </div>
             </div>
 
@@ -248,6 +267,9 @@
         </div>
       </div>
     </div>
+
+    <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+    <button id="btn-toggle-sidebar" class="fab-btn" title="Open Settings">⚙️</button>
 
     <script src="app.js"></script>
   </body>
