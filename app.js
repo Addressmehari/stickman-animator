@@ -463,6 +463,37 @@ function setupEventListeners() {
         }
     });
 
+    // --- Mobile Sidebar Toggle ---
+    const btnSidebar = document.getElementById('btn-toggle-sidebar');
+    const sidebar = document.querySelector('.sidebar-right');
+    const overlay = document.getElementById('sidebar-overlay');
+
+    if (btnSidebar && sidebar && overlay) {
+        const closeSidebar = () => {
+            sidebar.classList.remove('open');
+            overlay.classList.add('hidden');
+        };
+
+        const openSidebar = () => {
+             sidebar.classList.add('open');
+             overlay.classList.remove('hidden');
+        };
+
+        btnSidebar.addEventListener('click', () => {
+             if (sidebar.classList.contains('open')) closeSidebar();
+             else openSidebar();
+        });
+
+        overlay.addEventListener('click', closeSidebar);
+        
+        // Also close when interacting with canvas to clear view
+        if (canvas) {
+             canvas.addEventListener('touchstart', () => {
+                 if (sidebar.classList.contains('open')) closeSidebar();
+             }, { passive: false });
+        }
+    }
+
     // --- Keyboard Shortcuts ---
     window.addEventListener('keydown', (e) => {
         // Ignore if typing in an input
@@ -1180,6 +1211,9 @@ function startPlayback() {
     State.isPlaying = true;
     State.playStartTime = performance.now();
     State.playCurrentGlobalTime = 0;
+    
+    // Hide UI overlays
+    deselectPoint();
     
     btnPlay.classList.add('hidden');
     btnStop.classList.remove('hidden');
