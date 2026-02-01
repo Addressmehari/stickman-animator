@@ -74,59 +74,7 @@ function getInitialPose() {
     ];
 }
 
-// --- Audio Engine (Procedural Sound) ---
-const AudioEngine = {
-    ctx: null,
-    
-    init: function() {
-        // User interaction required to start AudioContext
-        try {
-            window.AudioContext = window.AudioContext || window.webkitAudioContext;
-            this.ctx = new AudioContext();
-        } catch(e) {
-            console.warn('Web Audio API not supported');
-        }
-    },
 
-    playPaperScuff: function(intensity = 1.0) {
-        if (!this.ctx) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const t = this.ctx.currentTime;
-        
-        // Brown/Pink Noise for "Paper" texture
-        const bufferSize = this.ctx.sampleRate * 0.15; // 150ms
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        let lastOut = 0;
-        
-        for (let i = 0; i < bufferSize; i++) {
-            // Simple Brown Noise approximation
-            const white = Math.random() * 2 - 1;
-            data[i] = (lastOut + (0.02 * white)) / 1.02;
-            lastOut = data[i];
-            data[i] *= 3.5; // Gain up
-        }
-
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-
-        // Filter to make it sound like paper
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 400 + Math.random() * 400; // Vary frequency
-        filter.Q.value = 1;
-
-        const gain = this.ctx.createGain();
-        gain.gain.setValueAtTime(0.1 * intensity, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-
-        noise.connect(filter);
-        filter.connect(gain);
-        gain.connect(this.ctx.destination);
-        noise.start();
-    }
-};
 
 // --- Application State ---
 const State = {
@@ -154,7 +102,6 @@ const State = {
     lastFrameTime: 0,
     playStartTime: 0,
     playCurrentGlobalTime: 0,
-    playLastScuffTime: 0, // Track sound triggers
     playbackMode: 'loop' // 'loop', 'pingpong', 'once'
 };
 
@@ -906,8 +853,7 @@ function draw() {
         drawStickman(ctx, getCurrentInterpolatedPose(), CONFIG.skeletonColor, 1, 1, 0, 0, true);
         
         if (State.playCurrentGlobalTime - State.playLastScuffTime > 0.15) {
-             AudioEngine.playPaperScuff(Math.random() * 0.5 + 0.5);
-             State.playLastScuffTime = State.playCurrentGlobalTime;
+             // Audio Removed
         }
 
     } else {
@@ -1197,11 +1143,10 @@ function deleteFrame(index) {
 
 // --- Playback Logic ---
 function startPlayback() {
-    AudioEngine.init(); // Initialize audio on first user gesture
+    // Audio Removed
     State.isPlaying = true;
     State.playStartTime = performance.now();
     State.playCurrentGlobalTime = 0;
-    State.playLastScuffTime = 0;
     
     btnPlay.classList.add('hidden');
     btnStop.classList.remove('hidden');
