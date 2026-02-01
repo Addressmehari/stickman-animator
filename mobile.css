@@ -11,7 +11,7 @@
     /* Header Compactness */
     .top-bar {
         padding: 0 10px;
-        height: 50px;
+        height: 45px;
         overflow-x: auto; /* Allow scrolling for many buttons */
     }
 
@@ -28,31 +28,42 @@
     }
 
     .btn {
-        padding: 6px 10px;
+        padding: 4px 8px; /* Even smaller btn padding */
         font-size: 0.8rem;
     }
 
-    /* Canvas Responsive */
+    /* Canvas Responsive - MAXIMIZED */
     .viewport {
-        flex: 0 0 auto; /* Don't grow, size to content/constraints */
+        flex: 1; /* Grow to fill all available space */
         width: 100%;
-        height: auto; /* Let Javascript/AspectRatio define height */
-        padding: 10px;
-        background-color: #1a1a1a;
+        height: 100%; 
+        padding: 5px; /* Minimal padding */
+        background-color: #121212; /* Match app bg */
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
     
     .canvas-wrapper {
         width: 100%;
-        height: auto;
-        max-height: 50vh; /* Limit height so controls are visible */
-        aspect-ratio: 4/3; /* Maintain approximate aspect ratio of 800x600 */
+        height: 100%;
+        max-height: none; /* Remove restriction */
+        aspect-ratio: auto; /* Let flex handle it */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
     }
 
     canvas {
         touch-action: none;
-        width: 100% !important;
-        height: 100% !important;
+        max-width: 100%;
+        max-height: 100%;
+        width: auto !important; /* Allow aspect ratio preservation */
+        height: auto !important; /* Allow aspect ratio preservation */
         object-fit: contain;
+        box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Make canvas pop */
+        background-color: var(--bg-canvas); /* Ensure grid is visible */
     }
 
     /* Sidebar as Drawer (Hidden by default) */
@@ -96,7 +107,7 @@
     .fab-btn {
         display: flex;
         position: fixed;
-        bottom: 180px; /* Above Timeline */
+        bottom: 160px; /* Above Timeline */
         right: 20px;
         width: 50px;
         height: 50px;
@@ -118,7 +129,7 @@
     .context-bar {
         position: fixed;
         top: auto;
-        bottom: 170px; /* Directly above timeline */
+        bottom: 150px; /* Directly above timeline */
         left: 50%;
         right: auto;
         transform: translateX(-50%);
@@ -159,16 +170,16 @@
     
     /* Timeline Adjustments */
     .timeline-panel {
-        height: 160px; /* Slightly smaller */
+        height: 140px; /* Reduced for more canvas space */
     }
 
     .frame-card {
-        width: 60px;
-        height: 80px;
+        width: 50px;
+        height: 70px;
     }
     
     .add-frame-div {
-        width: 60px;
-        height: 80px;
+        width: 50px;
+        height: 70px;
     }
 }

@@ -708,6 +708,10 @@ function selectPoint(index) {
     State.selectedPointIndex = index;
     panelProperties.classList.remove('hidden');
     
+    // Hide FAB on mobile to avoid clutter
+    const fab = document.getElementById('btn-toggle-sidebar');
+    if (fab) fab.classList.add('hidden');
+    
     // Update Properties Panel values
     const point = State.frames[State.currentFrameIndex].points[index];
     selectEasing.value = point.easing || 'easeInOutCubic';
@@ -720,6 +724,11 @@ function selectPoint(index) {
 function deselectPoint() {
     State.selectedPointIndex = null;
     panelProperties.classList.add('hidden');
+    
+    // Show FAB back
+    const fab = document.getElementById('btn-toggle-sidebar');
+    if (fab) fab.classList.remove('hidden');
+
     draw();
 }
 
