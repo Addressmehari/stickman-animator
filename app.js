@@ -182,7 +182,7 @@ const History = {
         if (State.selectedPointIndex !== null) {
             panelProperties.classList.remove('hidden');
             const p = State.frames[State.currentFrameIndex].points[State.selectedPointIndex];
-            selectEasing.value = p.easing || 'easeInOutCubic';
+            selectEasing.value = p.easing || 'linear';
             
             const chkPassthrough = document.getElementById('point-passthrough');
             if (chkPassthrough) chkPassthrough.checked = !!p.isIgnored;
@@ -734,7 +734,7 @@ function selectPoint(index) {
     
     // Update Properties Panel values
     const point = State.frames[State.currentFrameIndex].points[index];
-    selectEasing.value = point.easing || 'easeInOutCubic';
+    selectEasing.value = point.easing || 'linear';
     if (chkPassthrough) {
         chkPassthrough.checked = !!point.isIgnored;
     }
@@ -1386,8 +1386,8 @@ function getPoseAtTime(globalTime) {
         const pointEnd = nextFrame.points[pIdx];
         
         // Basic Linear Interpolation Helper
-        const type = pointEnd.easing || 'easeInOutCubic';
-        const fn = EasingFunctions[type] || EasingFunctions[linear];
+        const type = pointEnd.easing || 'linear';
+        const fn = EasingFunctions[type] || EasingFunctions['linear'];
         const easedT = fn(localT);
 
         resultPoints[pIdx] = {
@@ -1447,7 +1447,7 @@ const FK_TRAVERSAL_ORDER = [7, 2, 8, 10, 1, 9, 11, 0, 3, 5, 4, 6];
 // Updated Interpolate Points for Per-Point Easing
 function interpolatePoints(pointsA, pointsB, linearT) {
     const resultPoints = new Array(pointsA.length);
-    const defaultEasing = 'easeInOutCubic';
+    const defaultEasing = 'linear';
 
     // Helper to get eased T for a specific point index
     const getT = (idx) => {
